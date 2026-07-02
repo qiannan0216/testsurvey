@@ -1201,19 +1201,36 @@ input[type="text"]:focus, select:focus {
   }
   
   .sd-scale {
-    flex-direction: column;
-    gap: 0.8rem;
-    align-items: stretch;
+    flex-direction: row;
+    gap: 0.5rem;
+    align-items: center;
+    justify-content: space-between;
   }
   
   .sd-left, .sd-right {
-    text-align: center;
-    width: 100%;
+    width: 70px;
+    font-size: 0.8rem;
+    white-space: normal;
+  }
+
+  .sd-left {
+    text-align: right;
+  }
+
+  .sd-right {
+    text-align: left;
   }
   
   .sd-options {
-    max-width: 100%;
-    padding: 0 1rem;
+    flex: 1;
+    max-width: 220px;
+    padding: 0;
+  }
+
+  .sd-option {
+    width: 32px;
+    height: 32px;
+    font-size: 0.8rem;
   }
 
   .thankyou-actions {
