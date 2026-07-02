@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>等待時間品質體驗 (QoE) 與主觀時間評估系統</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- Navigation / Header -->
+  <header class="app-header">
+    <div class="header-logo">
+      <span class="logo-icon">⏳</span>
+      <span class="logo-text">QoE TimeLab</span>
+    </div>
+    <nav class="header-nav">
+      <button id="nav-experiment" class="nav-btn active">🧪 進行實驗</button>
+      <button id="nav-dashboard" class="nav-btn hidden">📊 研究者後台</button>
+    </nav>
+  </header>
+
+  <main class="app-container">
+    
+    <!-- SECTION 1: Welcome & Setup -->
+    <section id="sec-setup" class="card fade-in">
+      <div class="card-header text-center">
+        <h2>等待動畫體驗與主觀時間評估</h2>
+        <p class="subtitle">Waiting Animation Quality of Experience & Subjective Time Assessment</p>
+      </div>
+      
+      <div class="intro-box">
+        <h3>💡 實驗說明</h3>
+        <p>本實驗旨在評估不同等待動畫（載入圖示、咖啡杯、百分比）與不同等待時間（3秒、5秒、10秒）對使用者心理感受與時間感知的影響。</p>
+        <p><strong>流程說明：</strong></p>
+        <ol>
+          <li>輸入受試者代號並選擇實驗模式。</li>
+          <li>專心觀看載入動畫（播放期間無法暫停或快轉）。</li>
+          <li>動畫結束後，系統會自動跳轉至問卷，請根據真實感受填答。</li>
+        </ol>
+      </div>
+
+      <form id="form-setup" class="setup-form">
+        <div class="form-group">
+          <label for="participant-id">👤 受試者代號 (Participant ID):</label>
+          <input type="text" id="participant-id" placeholder="例如：P001" required autocomplete="off">
+        </div>
+
+        <div class="form-group">
+          <label>⚙️ 實驗模式 (Experiment Mode):</label>
+          <div class="mode-selector">
+            <label class="radio-tile">
+              <input type="radio" name="exp-mode" value="full" checked>
+              <div class="tile-content">
+                <span class="tile-icon">🧪</span>
+                <span class="tile-title">完整隨機實驗 (9次測試)</span>
+                <span class="tile-desc">隨機播放所有 9 個影片組合，適合正式收集數據。</span>
+              </div>
+            </label>
+            
+            <label class="radio-tile">
+              <input type="radio" name="exp-mode" value="single">
+              <div class="tile-content">
+                <span class="tile-icon">🎯</span>
+                <span class="tile-title">單一測試模式 (自選組合)</span>
+                <span class="tile-desc">自行選擇特定的動畫與時間進行測試，適合展示或體驗。</span>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div id="single-config-panel" class="single-config-panel hidden">
+          <h4>選擇自選組合：</h4>
+          <div class="config-grid">
+            <div class="form-group">
+              <label for="select-animation">動畫類型 (Animation):</label>
+              <select id="select-animation">
+                <option value="loading">載入圖示 (loading)</option>
+                <option value="咖啡杯">咖啡杯 (coffee-cup)</option>
+                <option value="百分比">百分比 (percentage)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="select-duration">持續時間 (Duration):</label>
+              <select id="select-duration">
+                <option value="3秒">3秒 (3 seconds)</option>
+                <option value="5秒">5秒 (5 seconds)</option>
+                <option value="10秒">10秒 (10 seconds)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">開始進行實驗 / Start</button>
+      </form>
+    </section>
+
+    <!-- SECTION 2: Video Player -->
+    <section id="sec-player" class="card video-card hidden">
+      <div class="video-instructions text-center">
+        <h3>👀 請專心觀看以下等待動畫</h3>
+        <p>動畫播放完畢後將自動跳轉至問卷頁面，請勿重新整理或關閉視窗。</p>
+        <div id="trial-progress-badge" class="progress-badge">測試進度: 0 / 9</div>
+      </div>
+      
+      <div class="video-viewport">
+        <!-- Prevent user interaction through CSS pointer-events -->
+        <video id="exp-video" playsinline webkit-playsinline muted></video>
+        <!-- Transparent cover to prevent right click / touch on video -->
+        <div class="video-overlay"></div>
+      </div>
+      
+      <!-- Fallback button in case of video loading fail (hidden by default) -->
+      <div id="video-fallback-container" class="hidden text-center mt-3">
+        <p class="text-danger">若影片無法正常播放，可點擊下方按鈕跳過</p>
+        <button id="btn-skip-video" class="btn btn-secondary">手動進入問卷</button>
+      </div>
+    </section>
+
+    <!-- SECTION 3: Questionnaire Form -->
+    <section id="sec-questionnaire" class="card hidden">
+      <div class="survey-header text-center">
+        <h2>體驗評估問卷</h2>
+        <p class="subtitle">Experience Evaluation Questionnaire</p>
+        <div id="survey-current-info" class="trial-info-banner">影片類型: 載入動畫 | 持續時間: 3秒</div>
+      </div>
+
+      <form id="form-questionnaire" class="survey-form">
+        
+        <!-- Part A: Subjective Time Judgment -->
+        <div class="survey-section">
+          <div class="section-title">
+            <span class="sec-num">A</span>
+            <h3>主觀時間判斷 (Subjective Time Judgment)</h3>
+          </div>
+          
+          <div class="question-block">
+            <label class="q-label">Q1. 在觀看完載入動畫後，您認為它持續了多長時間？<br><span class="en-label">After watching the loading animation, how long did it last?</span></label>
+            <div class="dimension-explain">
+              <strong>💡 向度說明【主觀時間判斷】：</strong>請估計您主觀感覺這段動畫播放了幾秒。
+            </div>
+            
+            <div class="slider-container">
+              <div class="slider-value-display">您的估計：<span id="q1-val-display">5.0</span> 秒</div>
+              <input type="range" id="q1-slider" name="q1_range" min="0" max="15" step="0.1" value="5.0" class="custom-slider">
+              <div class="slider-labels">
+                <span>0 秒</span>
+                <span>3 秒</span>
+                <span>5 秒</span>
+                <span>7.5 秒</span>
+                <span>10 秒</span>
+                <span>12.5 秒</span>
+                <span>15 秒</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Part B: QoE Scales (Semantic Differential) -->
+        <div class="survey-section">
+          <div class="section-title">
+            <span class="sec-num">B</span>
+            <h3>QoE 體驗品質評估 (QoE Scales)</h3>
+          </div>
+          
+          <p class="section-intro">以下題目均為 5 點語意差異量表。請在左右兩端的形容詞之間，勾選<strong>最貼近您觀看該動畫時真實感受</strong>的圓圈。</p>
+
+          <!-- Q2 Perceived Speed -->
+          <div class="question-block sd-item">
+            <div class="sd-header">
+              <span class="sd-q-num">Q2</span>
+              <span class="sd-q-title">感知速度 (Perceived Speed)</span>
+            </div>
+            <div class="dimension-explain">
+              <strong>💡 向度說明【感知速度】：</strong>您主觀感覺到的系統載入速度快慢。
+            </div>
+            
+            <div class="sd-scale">
+              <span class="sd-left">Slow (慢)</span>
+              <div class="sd-options">
+                <label class="sd-option"><input type="radio" name="q2" value="1" required><span>1</span></label>
+                <label class="sd-option"><input type="radio" name="q2" value="2"><span>2</span></label>
+                <label class="sd-option"><input type="radio" name="q2" value="3"><span>3</span></label>
+                <label class="sd-option"><input type="radio" name="q2" value="4"><span>4</span></label>
+                <label class="sd-option"><input type="radio" name="q2" value="5"><span>5</span></label>
+              </div>
+              <span class="sd-right font-right">Fast (快)</span>
+            </div>
+          </div>
+
+          <!-- Q3 Subjective Passage of Time -->
+          <div class="question-block sd-item">
+            <div class="sd-header">
+              <span class="sd-q-num">Q3</span>
+              <span class="sd-q-title">時間通過感 (Subjective Passage of Time)</span>
+            </div>
+            <div class="dimension-explain">
+              <strong>💡 向度說明【時間通過感】：</strong>您主觀感覺時間流逝的速度是漫長還是短暫。
+            </div>
+            
+            <div class="sd-scale">
+              <span class="sd-left">Long (長)</span>
+              <div class="sd-options">
+                <label class="sd-option"><input type="radio" name="q3" value="1" required><span>1</span></label>
+                <label class="sd-option"><input type="radio" name="q3" value="2"><span>2</span></label>
+                <label class="sd-option"><input type="radio" name="q3" value="3"><span>3</span></label>
+                <label class="sd-option"><input type="radio" name="q3" value="4"><span>4</span></label>
+                <label class="sd-option"><input type="radio" name="q3" value="5"><span>5</span></label>
+              </div>
+              <span class="sd-right font-right">Short (短)</span>
+            </div>
+          </div>
+
+          <!-- Q4 Perceived Interest -->
+          <div class="question-block sd-item">
+            <div class="sd-header">
+              <span class="sd-q-num">Q4</span>
+              <span class="sd-q-title">感知趣味性 (Perceived Interest)</span>
+            </div>
+            <div class="dimension-explain">
+              <strong>💡 向度說明【感知趣味性】：</strong>您覺得這部等待動畫本身是否有吸引力、有趣。
+            </div>
+            
+            <div class="sd-scale">
+              <span class="sd-left">Boring (無趣)</span>
+              <div class="sd-options">
+                <label class="sd-option"><input type="radio" name="q4" value="1" required><span>1</span></label>
+                <label class="sd-option"><input type="radio" name="q4" value="2"><span>2</span></label>
+                <label class="sd-option"><input type="radio" name="q4" value="3"><span>3</span></label>
+                <label class="sd-option"><input type="radio" name="q4" value="4"><span>4</span></label>
+                <label class="sd-option"><input type="radio" name="q4" value="5"><span>5</span></label>
+              </div>
+              <span class="sd-right font-right">Interesting (有趣)</span>
+            </div>
+          </div>
+
+          <!-- Q5 Perceived Aesthetics -->
+          <div class="question-block sd-item">
+            <div class="sd-header">
+              <span class="sd-q-num">Q5</span>
+              <span class="sd-q-title">感知美感 (Perceived Aesthetics)</span>
+            </div>
+            <div class="dimension-explain">
+              <strong>💡 向度說明【感知美感】：</strong>您對這部動畫的視覺美學、色彩與流暢度的滿意度。
+            </div>
+            
+            <div class="sd-scale">
+              <span class="sd-left">Low (低)</span>
+              <div class="sd-options">
+                <label class="sd-option"><input type="radio" name="q5" value="1" required><span>1</span></label>
+                <label class="sd-option"><input type="radio" name="q5" value="2"><span>2</span></label>
+                <label class="sd-option"><input type="radio" name="q5" value="3"><span>3</span></label>
+                <label class="sd-option"><input type="radio" name="q5" value="4"><span>4</span></label>
+                <label class="sd-option"><input type="radio" name="q5" value="5"><span>5</span></label>
+              </div>
+              <span class="sd-right font-right">High (高)</span>
+            </div>
+          </div>
+
+          <!-- Q6 - Q10 Affective / Emotional SD Table -->
+          <div class="question-block mt-4">
+            <div class="sd-header">
+              <span class="sd-q-num">Q6–Q10</span>
+              <span class="sd-q-title">情感／情緒向度 (Affective & Emotional Response)</span>
+            </div>
+            <div class="dimension-explain">
+              <strong>💡 向度說明【情感／情緒向度】：</strong>測量觀看動畫時，您內心產生的直接情緒狀態。
+            </div>
+
+            <div class="sd-table-container">
+              <table class="sd-table">
+                <thead>
+                  <tr>
+                    <th class="col-left">負向狀態 (1)</th>
+                    <th class="col-scale">①</th>
+                    <th class="col-scale">②</th>
+                    <th class="col-scale">③</th>
+                    <th class="col-scale">④</th>
+                    <th class="col-scale">⑤</th>
+                    <th class="col-right">正向狀態 (5)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- E1 -->
+                  <tr>
+                    <td class="cell-left"><span class="badge-e">E1</span> Sad (悲傷)</td>
+                    <td colspan="5" class="cell-scale-group">
+                      <div class="table-radio-row">
+                        <label><input type="radio" name="e1" value="1" required></label>
+                        <label><input type="radio" name="e1" value="2"></label>
+                        <label><input type="radio" name="e1" value="3"></label>
+                        <label><input type="radio" name="e1" value="4"></label>
+                        <label><input type="radio" name="e1" value="5"></label>
+                      </div>
+                    </td>
+                    <td class="cell-right">Happy (愉快)</td>
+                  </tr>
+                  <!-- E2 -->
+                  <tr>
+                    <td class="cell-left"><span class="badge-e">E2</span> Uncomfortable (不舒適)</td>
+                    <td colspan="5" class="cell-scale-group">
+                      <div class="table-radio-row">
+                        <label><input type="radio" name="e2" value="1" required></label>
+                        <label><input type="radio" name="e2" value="2"></label>
+                        <label><input type="radio" name="e2" value="3"></label>
+                        <label><input type="radio" name="e2" value="4"></label>
+                        <label><input type="radio" name="e2" value="5"></label>
+                      </div>
+                    </td>
+                    <td class="cell-right">Comfortable (舒適)</td>
+                  </tr>
+                  <!-- E3 -->
+                  <tr>
+                    <td class="cell-left"><span class="badge-e">E3</span> Tense (緊繃)</td>
+                    <td colspan="5" class="cell-scale-group">
+                      <div class="table-radio-row">
+                        <label><input type="radio" name="e3" value="1" required></label>
+                        <label><input type="radio" name="e3" value="2"></label>
+                        <label><input type="radio" name="e3" value="3"></label>
+                        <label><input type="radio" name="e3" value="4"></label>
+                        <label><input type="radio" name="e3" value="5"></label>
+                      </div>
+                    </td>
+                    <td class="cell-right">At Ease (放鬆)</td>
+                  </tr>
+                  <!-- E4 -->
+                  <tr>
+                    <td class="cell-left"><span class="badge-e">E4</span> Anxious (焦慮)</td>
+                    <td colspan="5" class="cell-scale-group">
+                      <div class="table-radio-row">
+                        <label><input type="radio" name="e4" value="1" required></label>
+                        <label><input type="radio" name="e4" value="2"></label>
+                        <label><input type="radio" name="e4" value="3"></label>
+                        <label><input type="radio" name="e4" value="4"></label>
+                        <label><input type="radio" name="e4" value="5"></label>
+                      </div>
+                    </td>
+                    <td class="cell-right">Relaxed (輕鬆)</td>
+                  </tr>
+                  <!-- E5 -->
+                  <tr>
+                    <td class="cell-left"><span class="badge-e">E5</span> Unimpressed (無感)</td>
+                    <td colspan="5" class="cell-scale-group">
+                      <div class="table-radio-row">
+                        <label><input type="radio" name="e5" value="1" required></label>
+                        <label><input type="radio" name="e5" value="2"></label>
+                        <label><input type="radio" name="e5" value="3"></label>
+                        <label><input type="radio" name="e5" value="4"></label>
+                        <label><input type="radio" name="e5" value="5"></label>
+                      </div>
+                    </td>
+                    <td class="cell-right">Stimulated (驚喜)</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Q11 - Q15 Functional / Utilitarian SD Table -->
+          <div class="question-block mt-4">
+            <div class="sd-header">
+              <span class="sd-q-num">Q11–Q15</span>
+              <span class="sd-q-title">功能／實用向度 (Functional & Utilitarian Response)</span>
+            </div>
+            <div class="dimension-explain">
+              <strong>💡 向度說明【功能／實用向度】：</strong>測量這部動畫是否提供足夠的系統狀態資訊，進而影響您的耐心與信心。
+            </div>
+
+            <div class="sd-table-container">
+              <table class="sd-table">
+                <thead>
+                  <tr>
+                    <th class="col-left">負向狀態 (1)</th>
+                    <th class="col-scale">①</th>
+                    <th class="col-scale">②</th>
+                    <th class="col-scale">③</th>
+                    <th class="col-scale">④</th>
+                    <th class="col-scale">⑤</th>
+                    <th class="col-right">正向狀態 (5)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- U1 -->
+                  <tr>
+                    <td class="cell-left"><span class="badge-u">U1</span> Impatient (不耐煩)</td>
+                    <td colspan="5" class="cell-scale-group">
+                      <div class="table-radio-row">
+                        <label><input type="radio" name="u1" value="1" required></label>
+                        <label><input type="radio" name="u1" value="2"></label>
+                        <label><input type="radio" name="u1" value="3"></label>
+                        <label><input type="radio" name="u1" value="4"></label>
+                        <label><input type="radio" name="u1" value="5"></label>
+                      </div>
+                    </td>
+                    <td class="cell-right">Patient (有耐心)</td>
+                  </tr>
+                  <!-- U2 -->
+                  <tr>
+                    <td class="cell-left"><span class="badge-u">U2</span> Tired (疲倦)</td>
+                    <td colspan="5" class="cell-scale-group">
+                      <div class="table-radio-row">
+                        <label><input type="radio" name="u2" value="1" required></label>
+                        <label><input type="radio" name="u2" value="2"></label>
+                        <label><input type="radio" name="u2" value="3"></label>
+                        <label><input type="radio" name="u2" value="4"></label>
+                        <label><input type="radio" name="u2" value="5"></label>
+                      </div>
+                    </td>
+                    <td class="cell-right">Energetic (有活力)</td>
+                  </tr>
+                  <!-- U3 -->
+                  <tr>
+                    <td class="cell-left"><span class="badge-u">U3</span> Helpless (無力感)</td>
+                    <td colspan="5" class="cell-scale-group">
+                      <div class="table-radio-row">
+                        <label><input type="radio" name="u3" value="1" required></label>
+                        <label><input type="radio" name="u3" value="2"></label>
+                        <label><input type="radio" name="u3" value="3"></label>
+                        <label><input type="radio" name="u3" value="4"></label>
+                        <label><input type="radio" name="u3" value="5"></label>
+                      </div>
+                    </td>
+                    <td class="cell-right">Powerful (有掌控感)</td>
+                  </tr>
+                  <!-- U4 -->
+                  <tr>
+                    <td class="cell-left"><span class="badge-u">U4</span> Annoyed (煩躁)</td>
+                    <td colspan="5" class="cell-scale-group">
+                      <div class="table-radio-row">
+                        <label><input type="radio" name="u4" value="1" required></label>
+                        <label><input type="radio" name="u4" value="2"></label>
+                        <label><input type="radio" name="u4" value="3"></label>
+                        <label><input type="radio" name="u4" value="4"></label>
+                        <label><input type="radio" name="u4" value="5"></label>
+                      </div>
+                    </td>
+                    <td class="cell-right">Excited (興奮期待)</td>
+                  </tr>
+                  <!-- U5 -->
+                  <tr>
+                    <td class="cell-left"><span class="badge-u">U5</span> Confused (困惑)</td>
+                    <td colspan="5" class="cell-scale-group">
+                      <div class="table-radio-row">
+                        <label><input type="radio" name="u5" value="1" required></label>
+                        <label><input type="radio" name="u5" value="2"></label>
+                        <label><input type="radio" name="u5" value="3"></label>
+                        <label><input type="radio" name="u5" value="4"></label>
+                        <label><input type="radio" name="u5" value="5"></label>
+                      </div>
+                    </td>
+                    <td class="cell-right">Confident (有信心)</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="form-actions mt-4 text-center">
+          <button type="submit" id="btn-submit-survey" class="btn btn-primary btn-wide">送出本輪回答 / Submit</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- SECTION 4: Thank You -->
+    <section id="sec-thankyou" class="card text-center hidden">
+      <div class="thankyou-content">
+        <span class="completed-icon">🎉</span>
+        <h2>實驗全部完成！</h2>
+        <p class="lead">感謝您的協助與寶貴數據，這對我們的論文研究至關重要！</p>
+        <p class="subtitle">All trials are complete. Thank you for your contribution to our research!</p>
+        
+        <div class="completed-summary mt-4">
+          <p>受試者代號: <strong id="summary-p-id">-</strong></p>
+          <p>已完成測試組合數: <strong id="summary-trial-count">0 / 9</strong></p>
+        </div>
+
+        <div class="thankyou-actions mt-4">
+          <button id="btn-restart" class="btn btn-secondary">返回登入首頁</button>
+          <button id="btn-download-session" class="btn btn-primary" style="background: linear-gradient(135deg, var(--secondary) 0%, #059669 100%); border:none; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);">📥 下載我的答題紀錄 (CSV)</button>
+          <button id="btn-view-results" class="btn btn-primary hidden">📊 查看本機研究數據</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 5: Researcher Dashboard (Active when tab is selected) -->
+    <section id="sec-dashboard" class="card hidden">
+      <div class="dashboard-header">
+        <h2>📊 研究數據分析控制台</h2>
+        <p class="subtitle">Researcher Analytics Dashboard</p>
+      </div>
+
+      <!-- Quick Stats Panels -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <span class="stat-num" id="stat-total-subjects">0</span>
+          <span class="stat-label">受試者總數</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-num" id="stat-total-trials">0</span>
+          <span class="stat-label">累積評估次數</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-num" id="stat-avg-aesthetics">-</span>
+          <span class="stat-label">平均美感評分 (1-5)</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-num" id="stat-avg-utilitarian">-</span>
+          <span class="stat-label">平均實用度評分 (1-5)</span>
+        </div>
+      </div>
+
+      <!-- Dimension Explanation Guide -->
+      <div class="dashboard-section mt-4">
+        <h3>📖 量表向度定義與論文引用說明</h3>
+        <div class="grid-2col">
+          <div class="guide-box">
+            <h4>🧠 感受與感知向度 (Perception)</h4>
+            <ul>
+              <li><strong>主觀時間估計 (Subjective Time) [Q1]</strong>: 探討心理時鐘 (Cognitive Clock) 的偏誤。研究指出，當環境給予的刺激較多或注意力被轉移時，大腦會低估時間；反之在空無一物的等待（如簡單的轉圈圈）中會高估時間。</li>
+              <li><strong>感知速度 (Perceived Speed) [Q2]</strong>: 這是 QoE 的核心指標。即使實際速度相同，動態感強、變化頻繁的動畫能給予系統快速響應的錯覺。</li>
+              <li><strong>時間通過感 (Subjective Passage of Time) [Q3]</strong>: 反映時間流逝感。通常與趣味性呈顯著正相關。</li>
+              <li><strong>感知趣味性 (Perceived Interest) [Q4]</strong>: 分心假說 (Distraction Hypothesis) 的驗證。趣味性的等待動畫能實質降低等待帶來的阻抗。</li>
+              <li><strong>感知美感 (Perceived Aesthetics) [Q5]</strong>: 視覺滿意度。影響使用者對應用程式的品牌忠誠度與品質預期。</li>
+            </ul>
+          </div>
+          <div class="guide-box">
+            <h4>❤️ 情感與實用向度 (Emotional & Utilitarian)</h4>
+            <ul>
+              <li><strong>情感向度 (Affective) [Q6–Q10]</strong>: 
+                <ul>
+                  <li><strong>E1 Sad ↔ Happy</strong>：衡量情緒基調。</li>
+                  <li><strong>E2 Uncomfortable ↔ Comfortable</strong>：對等待界面佈局與動態的和諧度感受。</li>
+                  <li><strong>E3 Tense ↔ At Ease</strong>、<strong>E4 Anxious ↔ Relaxed</strong>：檢驗動畫是否能起到鎮靜 (Soothing) 作用，減低伺服器無回應帶來的焦慮感。</li>
+                  <li><strong>E5 Unimpressed ↔ Stimulated</strong>：衡量動畫帶來的新穎性與驚喜。</li>
+                </ul>
+              </li>
+              <li><strong>實用向度 (Utilitarian) [Q11–Q15]</strong>:
+                <ul>
+                  <li><strong>U1 Impatient ↔ Patient</strong>：直接衡量動畫對延長耐心阈值的程度。</li>
+                  <li><strong>U2 Tired ↔ Energetic</strong>：動畫流暢度對精力喚醒的影響。</li>
+                  <li><strong>U3 Helpless ↔ Powerful</strong>：極具關鍵。百分比或進度條能提供高度的<strong>狀態回饋</strong>，讓使用者感受到「掌控感」。</li>
+                  <li><strong>U4 Annoyed ↔ Excited</strong>：動畫是否能化等待為期待。</li>
+                  <li><strong>U5 Confused ↔ Confident</strong>：對系統是否正常運作的把握。</li>
+                </ul>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Visualized Performance Chart Dashboard (HTML/CSS-based bar charts) -->
+      <div class="dashboard-section mt-4">
+        <h3>📊 數據分析視覺化</h3>
+        <div class="grid-2col">
+          <!-- QoE score by Animation Type -->
+          <div class="chart-card">
+            <h4>三種等待動畫的總體 QoE 評分 (Q2-Q15 平均值，越高越佳)</h4>
+            <div class="bar-chart-container" id="chart-animation-qoe">
+              <!-- Rendered by JS -->
+              <div class="chart-placeholder">暫無數據，請先進行實驗</div>
+            </div>
+          </div>
+          
+          <!-- Subjective time bias (Estimate vs Actual) -->
+          <div class="chart-card">
+            <h4>主觀估計時間與客觀時間的偏差率 (值越接近0%代表估計越精準)</h4>
+            <div class="bar-chart-container" id="chart-time-bias">
+              <div class="chart-placeholder">暫無數據，請先進行實驗</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Controls & CSV Data Export -->
+      <div class="dashboard-section mt-4">
+        <div class="dashboard-section-header">
+          <h3>📁 原始實驗數據列表</h3>
+          <div class="header-actions">
+            <button id="btn-load-samples" class="btn btn-secondary btn-sm">🧬 載入範例模擬數據</button>
+            <button id="btn-export-csv" class="btn btn-primary btn-sm">📥 匯出為 CSV 檔案</button>
+            <button id="btn-clear-db" class="btn btn-danger btn-sm">🗑️ 清空所有數據</button>
+          </div>
+        </div>
+        
+        <div class="table-container">
+          <table class="data-table" id="db-raw-table">
+            <thead>
+              <tr>
+                <th>受試者ID</th>
+                <th>動畫類型</th>
+                <th>客觀時間</th>
+                <th>Q1估值</th>
+                <th>Q2速度</th>
+                <th>Q3感</th>
+                <th>Q4趣</th>
+                <th>Q5美</th>
+                <th>情緒(E1-E5)</th>
+                <th>功能(U1-U5)</th>
+                <th>紀錄時間</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td colspan="11" class="text-center text-muted">目前尚無實驗紀錄。請前往「進行實驗」填寫問卷，或點擊「載入範例模擬數據」。</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="app-footer">
+    <p>© 2026 載入動畫對 QoE 與主觀時間評估之實驗系統. All rights reserved.</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
