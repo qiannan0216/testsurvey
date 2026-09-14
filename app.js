@@ -1,15 +1,17 @@
-// Define the 9 loading video trial combinations
-const TRIALS = [
-  { animation: 'loading', durationText: '3秒', durationSec: 3, filename: 'loading3秒.mp4' },
-  { animation: 'loading', durationText: '5秒', durationSec: 5, filename: 'loading5秒.mp4' },
-  { animation: 'loading', durationText: '10秒', durationSec: 10, filename: 'loading10秒.mp4' },
-  { animation: '咖啡杯', durationText: '3秒', durationSec: 3, filename: '咖啡杯3秒.mp4' },
-  { animation: '咖啡杯', durationText: '5秒', durationSec: 5, filename: '咖啡杯5秒.mp4' },
-  { animation: '咖啡杯', durationText: '10秒', durationSec: 10, filename: '咖啡杯10秒.mp4' },
-  { animation: '百分比', durationText: '3秒', durationSec: 3, filename: '百分比3秒.mp4' },
-  { animation: '百分比', durationText: '5秒', durationSec: 5, filename: '百分比5秒.mp4' },
-  { animation: '百分比', durationText: '10秒', durationSec: 10, filename: '百分比10秒.mp4' }
-];
+// Define the 9 loading video condition combinations (A1-A3 Animation x B1-B3 Duration)
+const CONDITIONS = {
+  'C01': { conditionCode: 'C01', animCode: 'A1', durCode: 'B1', animation: 'loading', animName: '載入圖示', durationText: '3秒', durationSec: 3, filename: 'loading3秒.mp4' },
+  'C02': { conditionCode: 'C02', animCode: 'A1', durCode: 'B2', animation: 'loading', animName: '載入圖示', durationText: '5秒', durationSec: 5, filename: 'loading5秒.mp4' },
+  'C03': { conditionCode: 'C03', animCode: 'A1', durCode: 'B3', animation: 'loading', animName: '載入圖示', durationText: '10秒', durationSec: 10, filename: 'loading10秒.mp4' },
+  'C04': { conditionCode: 'C04', animCode: 'A2', durCode: 'B1', animation: '咖啡杯', animName: '咖啡杯', durationText: '3秒', durationSec: 3, filename: '咖啡杯3秒.mp4' },
+  'C05': { conditionCode: 'C05', animCode: 'A2', durCode: 'B2', animation: '咖啡杯', animName: '咖啡杯', durationText: '5秒', durationSec: 5, filename: '咖啡杯5秒.mp4' },
+  'C06': { conditionCode: 'C06', animCode: 'A2', durCode: 'B3', animation: '咖啡杯', animName: '咖啡杯', durationText: '10秒', durationSec: 10, filename: '咖啡杯10秒.mp4' },
+  'C07': { conditionCode: 'C07', animCode: 'A3', durCode: 'B1', animation: '百分比', animName: '百分比', durationText: '3秒', durationSec: 3, filename: '百分比3秒.mp4' },
+  'C08': { conditionCode: 'C08', animCode: 'A3', durCode: 'B2', animation: '百分比', animName: '百分比', durationText: '5秒', durationSec: 5, filename: '百分比5秒.mp4' },
+  'C09': { conditionCode: 'C09', animCode: 'A3', durCode: 'B3', animation: '百分比', animName: '百分比', durationText: '10秒', durationSec: 10, filename: '百分比10秒.mp4' }
+};
+
+const TRIALS = Object.values(CONDITIONS);
 
 // Google Sheets Web App Endpoint for automated data collection
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwMcJ8kttJobodGInq4jrTJUivcORMAz2Rw3L_HzjkA73mRLaPqRnLFv7zogGB-FKUM/exec";
@@ -52,14 +54,127 @@ const navBtns = {
 const videoEl = document.getElementById('exp-video');
 const videoFallbackContainer = document.getElementById('video-fallback-container');
 
-// Shuffles an array (Fisher-Yates)
-function shuffleArray(arr) {
+// Mulberry32 PRNG for reproducible random operations
+function mulberry32(a) {
+  return function() {
+    let t = a += 0x6D2B79F5;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Shuffles an array (Fisher-Yates) with optional custom RNG
+function shuffleArray(arr, rng = Math.random) {
   const result = [...arr];
   for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(rng() * (i + 1));
     [result[i], result[j]] = [result[j], result[i]];
   }
   return result;
+}
+
+// Generate a valid 9x9 Randomized Latin Square
+function generateRandomizedLatinSquare(seed = null) {
+  const rng = seed !== null ? mulberry32(seed) : Math.random;
+  const codes = ['C01', 'C02', 'C03', 'C04', 'C05', 'C06', 'C07', 'C08', 'C09'];
+  const n = 9;
+
+  // 1. Base cyclic square: base[i][j] = (i + j) % 9
+  const base = [];
+  for (let i = 0; i < n; i++) {
+    const row = [];
+    for (let j = 0; j < n; j++) {
+      row.push((i + j) % n);
+    }
+    base.push(row);
+  }
+
+  // 2. Randomly permute treatment symbols, rows, and columns
+  const symPerm = shuffleArray([...Array(n).keys()], rng);
+  const rowPerm = shuffleArray([...Array(n).keys()], rng);
+  const colPerm = shuffleArray([...Array(n).keys()], rng);
+
+  // 3. Assemble randomized Latin Square
+  const square = [];
+  for (let r = 0; r < n; r++) {
+    const origRow = rowPerm[r];
+    const row = [];
+    for (let c = 0; c < n; c++) {
+      const origCol = colPerm[c];
+      const sym = base[origRow][origCol];
+      row.push(codes[symPerm[sym]]);
+    }
+    square.push(row);
+  }
+
+  return square;
+}
+
+// Get or initialize persistent 9x9 Latin Square in localStorage
+function getOrInitLatinSquare() {
+  try {
+    const stored = localStorage.getItem('latin_square_9x9');
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed) && parsed.length === 9 && parsed[0].length === 9) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.error("Error reading stored Latin Square:", e);
+  }
+
+  const newSquare = generateRandomizedLatinSquare();
+  localStorage.setItem('latin_square_9x9', JSON.stringify(newSquare));
+  return newSquare;
+}
+
+// Force re-randomize Latin Square (researcher action)
+function rerandomizeLatinSquare() {
+  if (!confirm('確定要重新隨機生成 9×9 拉丁方格嗎？\n生成後，後續受試者的順序分配將採用新的拉丁方格。')) return;
+  const newSquare = generateRandomizedLatinSquare();
+  localStorage.setItem('latin_square_9x9', JSON.stringify(newSquare));
+  renderLatinSquareTable();
+  updateOnboardingParticipantId();
+  alert('已成功重新生成隨機化 9×9 拉丁方格！');
+}
+
+// Extract numeric sequence from Participant ID (e.g. 'P001' -> 1, 'P012' -> 12)
+function getParticipantNumber(participantId) {
+  if (!participantId) return 1;
+  const match = String(participantId).match(/\d+/);
+  return match ? parseInt(match[0], 10) : 1;
+}
+
+// Calculate Latin Square order group from Participant ID
+function getOrderGroupInfo(participantId) {
+  const pNum = getParticipantNumber(participantId);
+  const rowIndex = ((pNum - 1) % 9 + 9) % 9; // 0 to 8
+  const groupNum = rowIndex + 1; // 1 to 9
+  const groupCode = `S0${groupNum}`.slice(-3); // S01 - S09
+  return {
+    rowIndex,
+    groupNumber: groupNum,
+    groupCode
+  };
+}
+
+// Generate ordered trial sequence for participant based on their Latin Square row
+function getTrialsForParticipant(participantId) {
+  const square = getOrInitLatinSquare();
+  const groupInfo = getOrderGroupInfo(participantId);
+  const conditionCodes = square[groupInfo.rowIndex]; // Array of 9 codes: ['C05', 'C01', ...]
+
+  return conditionCodes.map((cCode, idx) => {
+    const cond = CONDITIONS[cCode];
+    return {
+      ...cond,
+      orderGroup: groupInfo.groupCode,
+      groupNumber: groupInfo.groupNumber,
+      trialOrder: idx + 1 // 1 to 9
+    };
+  });
 }
 
 // Switch between views (Setup, Player, Questionnaire, Thank You, Dashboard)
@@ -98,19 +213,20 @@ document.addEventListener('DOMContentLoaded', () => {
     renderDashboard();
   });
 
-  // 2. Setup Form: Toggle Single Config Selection Display
-  const expModeRadios = document.getElementsByName('exp-mode');
-  const singleConfigPanel = document.getElementById('single-config-panel');
-  
-  expModeRadios.forEach(radio => {
-    radio.addEventListener('change', (e) => {
-      if (e.target.value === 'single') {
-        singleConfigPanel.classList.remove('hidden');
-      } else {
-        singleConfigPanel.classList.add('hidden');
+  // Initialize Auto-generated Participant ID
+  updateOnboardingParticipantId();
+
+  // Custom Participant ID change button
+  const btnChangeId = document.getElementById('btn-change-id');
+  if (btnChangeId) {
+    btnChangeId.addEventListener('click', () => {
+      const currentId = document.getElementById('participant-id').value;
+      const customId = prompt('請輸入指定的受試者代號 (例如 P002, P005)：', currentId);
+      if (customId && customId.trim()) {
+        updateOnboardingParticipantId(customId.trim());
       }
     });
-  });
+  }
 
   // 3. Start Experiment Event
   document.getElementById('form-setup').addEventListener('submit', (e) => {
@@ -160,13 +276,84 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-clear-db').addEventListener('click', clearDatabase);
   document.getElementById('btn-load-samples').addEventListener('click', loadSampleMockData);
 
-  // Check URL parameters for admin/researcher mode
+  const btnRerandomizeLs = document.getElementById('btn-rerandomize-ls');
+  if (btnRerandomizeLs) {
+    btnRerandomizeLs.addEventListener('click', rerandomizeLatinSquare);
+  }
+
+  // --- Researcher Mode Access Control (Hidden by default, accessible only to researcher) ---
   const urlParams = new URLSearchParams(window.location.search);
-  const isAdmin = urlParams.has('admin') || urlParams.has('researcher');
-  if (isAdmin) {
-    document.getElementById('nav-dashboard').classList.remove('hidden');
+  let isResearcherUnlocked = urlParams.has('admin') || urlParams.has('researcher') || sessionStorage.getItem('researcher_unlocked') === 'true';
+
+  function setResearcherMode(active) {
+    const navDash = document.getElementById('nav-dashboard');
     const viewResultsBtn = document.getElementById('btn-view-results');
-    if (viewResultsBtn) viewResultsBtn.classList.remove('hidden');
+    if (active) {
+      sessionStorage.setItem('researcher_unlocked', 'true');
+      if (navDash) navDash.classList.remove('hidden');
+      if (viewResultsBtn) viewResultsBtn.classList.remove('hidden');
+    } else {
+      sessionStorage.removeItem('researcher_unlocked');
+      if (navDash) navDash.classList.add('hidden');
+      if (viewResultsBtn) viewResultsBtn.classList.add('hidden');
+      if (state.viewState === 'dashboard') {
+        showSection('setup');
+      }
+    }
+  }
+
+  setResearcherMode(isResearcherUnlocked);
+
+  // Lock and hide dashboard button
+  const btnLockDash = document.getElementById('btn-lock-dashboard');
+  if (btnLockDash) {
+    btnLockDash.addEventListener('click', () => {
+      setResearcherMode(false);
+      showSection('setup');
+      alert('已成功鎖定並隱藏研究者後台！');
+    });
+  }
+
+  // Secret unlock mechanism for researcher:
+  // 1. Triple click on logo within 1.5s
+  let logoClickCount = 0;
+  let logoClickTimer = null;
+  const logoEl = document.querySelector('.header-logo');
+  if (logoEl) {
+    logoEl.style.cursor = 'pointer';
+    logoEl.title = '雙擊或三擊可開啟研究者登入';
+    logoEl.addEventListener('click', () => {
+      logoClickCount++;
+      if (logoClickTimer) clearTimeout(logoClickTimer);
+      logoClickTimer = setTimeout(() => { logoClickCount = 0; }, 1500);
+
+      if (logoClickCount >= 3) {
+        logoClickCount = 0;
+        promptResearcherLogin();
+      }
+    });
+  }
+
+  // 2. Keyboard shortcut Ctrl + Shift + R or Ctrl + Alt + A
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey && e.shiftKey && (e.key === 'R' || e.key === 'r')) ||
+        (e.ctrlKey && e.altKey && (e.key === 'A' || e.key === 'a'))) {
+      e.preventDefault();
+      promptResearcherLogin();
+    }
+  });
+
+  function promptResearcherLogin() {
+    const pwd = prompt('🔐 請輸入研究者後台密碼 (預設: admin)：');
+    if (pwd === null) return;
+    if (pwd.trim() === 'admin' || pwd.trim() === 'qoe2026' || pwd.trim() === '8888') {
+      setResearcherMode(true);
+      showSection('dashboard');
+      renderDashboard();
+      alert('已驗證身分，已為您開啟研究者後台！');
+    } else {
+      alert('密碼錯誤，無法開啟後台。');
+    }
   }
 
   // Initialize DB view in Dashboard
@@ -176,27 +363,18 @@ document.addEventListener('DOMContentLoaded', () => {
 // Start the Experiment Session
 function startExperiment() {
   const pIdInput = document.getElementById('participant-id').value.trim();
-  if (!pIdInput) return alert('請輸入受試者代號！');
+  if (!pIdInput) return alert('受試者代號未生成，請重新整理網頁！');
   
   state.participantId = pIdInput;
+  state.gender = document.querySelector('input[name="demographic-gender"]:checked').value;
+  state.age = document.querySelector('input[name="demographic-age"]:checked').value;
   state.trialResults = [];
   
-  const modeVal = document.querySelector('input[name="exp-mode"]:checked').value;
-  state.mode = modeVal;
-  
-  if (modeVal === 'full') {
-    // Randomized order of all 9 trials
-    state.trialList = shuffleArray(TRIALS);
-    state.currentTrialIndex = 0;
-  } else {
-    // Single trial mode
-    const animType = document.getElementById('select-animation').value;
-    const durationStr = document.getElementById('select-duration').value;
-    const baseTrial = TRIALS.find(t => t.animation === animType && t.durationText === durationStr);
-    
-    state.trialList = [Object.assign({}, baseTrial)];
-    state.currentTrialIndex = 0;
-  }
+  // Full 9-trial within-subject Latin Square experiment
+  state.mode = 'full';
+  state.groupInfo = getOrderGroupInfo(state.participantId);
+  state.trialList = getTrialsForParticipant(state.participantId);
+  state.currentTrialIndex = 0;
   
   // Launch the first trial
   runTrial();
@@ -207,10 +385,10 @@ function runTrial() {
   const trial = state.trialList[state.currentTrialIndex];
   state.currentTrial = trial;
   
-  // Update UI badge
+  // Update UI badge (blind: only display group and progress)
   const badgeEl = document.getElementById('trial-progress-badge');
   if (state.mode === 'full') {
-    badgeEl.textContent = `測試進度: ${state.currentTrialIndex + 1} / 9`;
+    badgeEl.textContent = `測試進度: ${state.currentTrialIndex + 1} / 9 (組別: ${trial.orderGroup})`;
   } else {
     badgeEl.textContent = `單一測試模式`;
   }
@@ -219,6 +397,8 @@ function runTrial() {
   videoFallbackContainer.classList.add('hidden');
   
   // Set up HTML5 video elements
+  videoEl.muted = true;
+  videoEl.volume = 0;
   videoEl.src = encodeURIComponent(trial.filename);
   videoEl.load();
   
@@ -258,11 +438,9 @@ function stopVideo() {
 function transitionToSurvey() {
   stopVideo();
   
-  // Update Survey Header labels
+  // Update Survey Header labels (blind testing: only display group and trial index)
   const infoBanner = document.getElementById('survey-current-info');
-  const animLabel = state.currentTrial.animation === 'loading' ? '載入圖示 (loading)' :
-                    state.currentTrial.animation === '咖啡杯' ? '咖啡杯 (coffee-cup)' : '百分比 (percentage)';
-  infoBanner.textContent = `影片類型: ${animLabel} | 客觀時間: ${state.currentTrial.durationText}`;
+  infoBanner.textContent = `順序組別: ${state.currentTrial.orderGroup} | 評估進度: 第 ${state.currentTrialIndex + 1} / ${state.trialList.length} 題`;
   
   // Reset form values
   document.getElementById('form-questionnaire').reset();
@@ -304,7 +482,11 @@ function submitSurvey() {
   const u5Val = parseInt(document.querySelector('input[name="u5"]:checked').value);
   
   // Calculate average QoE Score across the 14 semantic differential items (Q2 to Q15)
-  const qoeScoreList = [q2Val, q3Val, q4Val, q5Val, e1Val, e2Val, e3Val, e4Val, e5Val, u1Val, u2Val, u3Val, u4Val, u5Val];
+  // Note: Q2 (1=Fast, 5=Slow) and Q3 (1=Short, 5=Long) are inverted poles,
+  // so for composite overall QoE ("higher is better"), reverse-code them as (6 - value)
+  const q2Positive = 6 - q2Val;
+  const q3Positive = 6 - q3Val;
+  const qoeScoreList = [q2Positive, q3Positive, q4Val, q5Val, e1Val, e2Val, e3Val, e4Val, e5Val, u1Val, u2Val, u3Val, u4Val, u5Val];
   const overallQoE = parseFloat((qoeScoreList.reduce((a,b) => a+b, 0) / qoeScoreList.length).toFixed(2));
   
   // Slider has direct estimated seconds
@@ -313,8 +495,17 @@ function submitSurvey() {
   // Prepare Result Object
   const trialResult = {
     participantId: state.participantId,
+    orderGroup: state.currentTrial.orderGroup,
+    groupNumber: state.currentTrial.groupNumber,
+    trialOrder: state.currentTrial.trialOrder,
+    conditionCode: state.currentTrial.conditionCode,
+    animCode: state.currentTrial.animCode,
+    durCode: state.currentTrial.durCode,
+    gender: state.gender,
+    age: state.age,
     timestamp: new Date().toISOString(),
     animation: state.currentTrial.animation,
+    animName: state.currentTrial.animName,
     durationText: state.currentTrial.durationText,
     durationSec: state.currentTrial.durationSec,
     q1_estimateRaw: q1Val,
@@ -356,7 +547,8 @@ function submitSurvey() {
 // Show final completed screen
 function showThankYouScreen() {
   document.getElementById('summary-p-id').textContent = state.participantId;
-  document.getElementById('summary-trial-count').textContent = `${state.trialResults.length} / ${state.trialList.length}`;
+  const groupText = state.groupInfo ? ` (順序組別: ${state.groupInfo.groupCode})` : '';
+  document.getElementById('summary-trial-count').textContent = `${state.trialResults.length} / ${state.trialList.length}${groupText}`;
   showSection('thankyou');
 }
 
@@ -370,10 +562,21 @@ function saveSessionToDatabase() {
 // Reset state values for a fresh run
 function resetExperimentState() {
   state.participantId = '';
+  state.gender = '';
+  state.age = '';
   state.trialList = [];
   state.currentTrialIndex = 0;
   state.trialResults = [];
   state.viewState = 'setup';
+
+  // Clear onboarding form inputs
+  const genderChecked = document.querySelector('input[name="demographic-gender"]:checked');
+  if (genderChecked) genderChecked.checked = false;
+  const ageChecked = document.querySelector('input[name="demographic-age"]:checked');
+  if (ageChecked) ageChecked.checked = false;
+
+  // Auto-generate Participant ID for next session
+  updateOnboardingParticipantId();
 }
 
 // --- DATABASE & ANALYTICS LAYER ---
@@ -382,7 +585,10 @@ function resetExperimentState() {
 function renderDashboard() {
   const data = JSON.parse(localStorage.getItem('qoe_study_data') || '[]');
   
-  // 1. Update Core Stats
+  // 1. Render Latin Square Counterbalancing Table
+  renderLatinSquareTable();
+  
+  // 2. Update Core Stats
   const subjects = new Set(data.map(item => item.participantId));
   document.getElementById('stat-total-subjects').textContent = subjects.size;
   document.getElementById('stat-total-trials').textContent = data.length;
@@ -518,7 +724,7 @@ function renderRawDataTable(data) {
   if (data.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="11" class="text-center text-muted">目前尚無實驗紀錄。請前往「進行實驗」填寫問卷，或點擊「載入範例模擬數據」。</td>
+        <td colspan="15" class="text-center text-muted">目前尚無實驗紀錄。請前往「進行實驗」填寫問卷，或點擊「載入範例模擬數據」。</td>
       </tr>
     `;
     return;
@@ -532,21 +738,26 @@ function renderRawDataTable(data) {
     const date = new Date(item.timestamp);
     const dateStr = `${date.getMonth()+1}/${date.getDate()} ${date.getHours().toString().padStart(2,'0')}:${date.getMinutes().toString().padStart(2,'0')}`;
     
-    const overallScoreClass = item.overallQoE >= 4.0 ? 'text-success' : item.overallQoE <= 2.5 ? 'text-danger' : '';
-    
     // Emotional items composite average
     const emoAvg = ((item.e1 + item.e2 + item.e3 + item.e4 + item.e5) / 5).toFixed(1);
     // Utilitarian items composite average
     const utiAvg = ((item.u1 + item.u2 + item.u3 + item.u4 + item.u5) / 5).toFixed(1);
+
+    const animBadgeClass = item.animCode === 'A1' ? 'badge-anim-a1' :
+                           item.animCode === 'A2' ? 'badge-anim-a2' : 'badge-anim-a3';
     
     html += `
       <tr>
         <td><strong>${escapeHtml(item.participantId)}</strong></td>
-        <td>${escapeHtml(item.animation === 'loading' ? '載入圖示' : item.animation)}</td>
+        <td><span class="badge-cond" style="background: rgba(99,102,241,0.15); color: #c7d2fe;">${escapeHtml(item.orderGroup || '-')}</span></td>
+        <td>${item.trialOrder ? '#' + item.trialOrder : '-'}</td>
+        <td><span class="badge-cond ${animBadgeClass}"><strong>${escapeHtml(item.conditionCode || '-')}</strong></span></td>
+        <td><small class="text-muted">${escapeHtml((item.animCode || '') + (item.durCode || ''))}</small></td>
+        <td>${escapeHtml(item.animName || (item.animation === 'loading' ? '載入圖示' : item.animation))}</td>
         <td><span class="badge-e" style="background: rgba(99,102,241,0.1); border-color: rgba(99,102,241,0.2); color:#818cf8;">${item.durationText}</span></td>
         <td title="原始選值: ${item.q1_estimateRaw}">${item.q1_estimateText}</td>
-        <td>${item.q2_speed}</td>
-        <td>${item.q3_time_passage}</td>
+        <td title="1(快)～5(慢)">${item.q2_speed}</td>
+        <td title="1(短)～5(長)">${item.q3_time_passage}</td>
         <td>${item.q4_interest}</td>
         <td>${item.q5_aesthetics}</td>
         <td title="E1:${item.e1} E2:${item.e2} E3:${item.e3} E4:${item.e4} E5:${item.e5}">${emoAvg} <span class="text-muted">(Avg)</span></td>
@@ -556,6 +767,51 @@ function renderRawDataTable(data) {
     `;
   });
   
+  tbody.innerHTML = html;
+}
+
+// Render the 9x9 Latin Square Matrix in Dashboard
+function renderLatinSquareTable() {
+  const tbody = document.getElementById('tbody-latin-square');
+  if (!tbody) return;
+
+  const square = getOrInitLatinSquare();
+  let html = '';
+
+  square.forEach((row, rowIndex) => {
+    const groupNum = rowIndex + 1;
+    const groupCode = `S0${groupNum}`.slice(-3);
+    
+    // Calculate sample participant IDs that fall into this row (e.g. S01 -> P001, P010, P019...)
+    const p1 = 'P' + String(groupNum).padStart(3, '0');
+    const p2 = 'P' + String(groupNum + 9).padStart(3, '0');
+
+    html += `
+      <tr>
+        <td class="ls-group-col">
+          <strong>第 ${groupNum} 組 (${groupCode})</strong>
+          <br><small class="text-muted">${p1}, ${p2}...</small>
+        </td>
+    `;
+
+    row.forEach((condCode, colIndex) => {
+      const cond = CONDITIONS[condCode];
+      const animBadgeClass = cond.animCode === 'A1' ? 'badge-anim-a1' :
+                             cond.animCode === 'A2' ? 'badge-anim-a2' : 'badge-anim-a3';
+      const tooltip = `序號 ${colIndex + 1}: ${cond.conditionCode} = ${cond.animName} ${cond.durationText} (${cond.animCode}${cond.durCode})`;
+      
+      html += `
+        <td>
+          <span class="ls-cell-badge ${animBadgeClass}" title="${tooltip}">
+            ${condCode}
+          </span>
+        </td>
+      `;
+    });
+
+    html += `</tr>`;
+  });
+
   tbody.innerHTML = html;
 }
 
@@ -585,8 +841,15 @@ function loadSampleMockData() {
   
   // Seed database
   subjects.forEach(subjectId => {
-    // Generate all 9 trials for each participant
-    TRIALS.forEach(trial => {
+    // Constant demographics for each mock subject
+    const gender = Math.random() > 0.5 ? '生理男性' : '生理女性';
+    const ageOptions = ['18-24歲', '25-34歲', '35-44歲', '45歲以上'];
+    const age = ageOptions[Math.floor(Math.random() * ageOptions.length)];
+
+    // Generate all 9 trials according to Latin Square order for this participant
+    const participantTrials = getTrialsForParticipant(subjectId);
+    
+    participantTrials.forEach(trial => {
       let q1Raw, q2, q3, q4, q5;
       let e1, e2, e3, e4, e5;
       let u1, u2, u3, u4, u5;
@@ -598,6 +861,7 @@ function loadSampleMockData() {
       const dur = trial.durationSec;
       
       // 1. Time Judgment Q1 and Passage of Time Q3 (Psychological Modeling)
+      // Note: Q2 is 1=Fast, 5=Slow; Q3 is 1=Short, 5=Long!
       if (isCoffee) {
         // Coffee Cup: engaging, aesthetic. Time flies!
         // Underestimates time
@@ -605,22 +869,21 @@ function loadSampleMockData() {
         else if (dur === 5) q1Raw = parseFloat((Math.random() * 1.2 + 3.0).toFixed(1)); // 3.0 - 4.2s
         else q1Raw = parseFloat((Math.random() * 2.0 + 6.5).toFixed(1)); // 6.5 - 8.5s
         
-        q3 = Math.floor(Math.random() * 2) + 4; // 4-5 (Short)
+        q2 = Math.floor(Math.random() * 2) + 1; // 1-2 (Feels Fast!)
+        q3 = Math.floor(Math.random() * 2) + 1; // 1-2 (Feels Short!)
         q4 = Math.floor(Math.random() * 2) + 4; // 4-5 (Interesting)
         q5 = Math.floor(Math.random() * 2) + 4; // 4-5 (High Aesthetics)
-        q2 = Math.floor(Math.random() * 2) + 3; // 3-4 (Moderate to Fast)
       } 
       else if (isPercent) {
         // Percentage: high information feedback, highly accurate.
-        // Estimates time very accurately!
         if (dur === 3) q1Raw = parseFloat((Math.random() * 0.6 + 2.7).toFixed(1)); // 2.7 - 3.3s
         else if (dur === 5) q1Raw = parseFloat((Math.random() * 0.8 + 4.6).toFixed(1)); // 4.6 - 5.4s
         else q1Raw = parseFloat((Math.random() * 1.5 + 9.2).toFixed(1)); // 9.2 - 10.7s
         
-        q3 = Math.floor(Math.random() * 2) + 3; // 3-4 (Medium)
+        q2 = Math.floor(Math.random() * 2) + 1; // 1-2 (Active ticking feels fast!)
+        q3 = Math.floor(Math.random() * 2) + 2; // 2-3 (Moderate passage)
         q4 = Math.floor(Math.random() * 2) + 2; // 2-3 (Plain)
         q5 = Math.floor(Math.random() * 2) + 2; // 2-3 (Plain)
-        q2 = Math.floor(Math.random() * 2) + 4; // 4-5 (Feels faster due to active ticking!)
       } 
       else {
         // Loading: boring spinner. 度日如年!
@@ -629,10 +892,10 @@ function loadSampleMockData() {
         else if (dur === 5) q1Raw = parseFloat((Math.random() * 2.5 + 6.2).toFixed(1)); // 6.2 - 8.7s
         else q1Raw = parseFloat((Math.random() * 4.0 + 11.2).toFixed(1)); // 11.2 - 15.0s
         
-        q3 = Math.floor(Math.random() * 2) + 1; // 1-2 (Long!)
+        q2 = Math.floor(Math.random() * 2) + 4; // 4-5 (Slow! Endless spinner)
+        q3 = Math.floor(Math.random() * 2) + 4; // 4-5 (Feels Long!)
         q4 = Math.floor(Math.random() * 2) + 1; // 1-2 (Boring)
-        q5 = Math.floor(Math.random() * 2) + 1; // 1-2 (Low)
-        q2 = Math.floor(Math.random() * 2) + 1; // 1-2 (Slowspinner feels endless)
+        q5 = Math.floor(Math.random() * 2) + 1; // 1-2 (Low aesthetics)
       }
       
       // 2. Emotional SD (E1-E5)
@@ -684,8 +947,8 @@ function loadSampleMockData() {
         u5 = Math.floor(Math.random() * 2) + 2; // Confused
       }
       
-      // Compute overall score
-      const list = [q2, q3, q4, q5, e1, e2, e3, e4, e5, u1, u2, u3, u4, u5];
+      // Compute overall score with reversed Q2 & Q3
+      const list = [6 - q2, 6 - q3, q4, q5, e1, e2, e3, e4, e5, u1, u2, u3, u4, u5];
       const overall = parseFloat((list.reduce((a,b)=>a+b, 0)/list.length).toFixed(2));
       
       // Timestamp distributed over the last hour
@@ -694,8 +957,17 @@ function loadSampleMockData() {
       
       mockData.push({
         participantId: subjectId,
+        orderGroup: trial.orderGroup,
+        groupNumber: trial.groupNumber,
+        trialOrder: trial.trialOrder,
+        conditionCode: trial.conditionCode,
+        animCode: trial.animCode,
+        durCode: trial.durCode,
+        gender: gender,
+        age: age,
         timestamp: ts,
         animation: trial.animation,
+        animName: trial.animName,
         durationText: trial.durationText,
         durationSec: trial.durationSec,
         q1_estimateRaw: q1Raw,
@@ -715,7 +987,7 @@ function loadSampleMockData() {
   // Write to localStorage
   localStorage.setItem('qoe_study_data', JSON.stringify(mockData));
   renderDashboard();
-  alert('成功模擬載入 5 位受試者共 45 筆完整實驗數據！\n您可以立即在下方查看視覺化圖表與數據表格。');
+  alert('成功模擬載入 5 位受試者共 45 筆符合 9×9 拉丁方格之完整實驗數據！\n您可以立即在下方查看視覺化圖表、拉丁方格與數據表格。');
 }
 
 // Generate CSV string and trigger download in browser
@@ -728,7 +1000,8 @@ function exportCSV() {
   
   // Define CSV Header
   const headers = [
-    'ParticipantID', 'Timestamp', 'Animation', 'ActualDurationText', 'ActualDurationSec',
+    'ParticipantID', 'OrderGroup', 'TrialOrder', 'ConditionCode', 'AnimCode', 'DurCode',
+    'Gender', 'AgeGroup', 'Timestamp', 'Animation', 'ActualDurationText', 'ActualDurationSec',
     'Q1_EstimateRaw', 'Q1_EstimateText', 'Q1_EstimateMidpointSec',
     'Q2_Speed', 'Q3_TimePassage', 'Q4_Interest', 'Q5_Aesthetics',
     'E1_Happy', 'E2_Comfortable', 'E3_AtEase', 'E4_Relaxed', 'E5_Stimulated',
@@ -741,6 +1014,13 @@ function exportCSV() {
   data.forEach(item => {
     const row = [
       escapeCsvCell(item.participantId),
+      escapeCsvCell(item.orderGroup || '-'),
+      item.trialOrder || '-',
+      escapeCsvCell(item.conditionCode || '-'),
+      escapeCsvCell(item.animCode || '-'),
+      escapeCsvCell(item.durCode || '-'),
+      escapeCsvCell(item.gender || '-'),
+      escapeCsvCell(item.age || '-'),
       item.timestamp,
       escapeCsvCell(item.animation),
       escapeCsvCell(item.durationText),
@@ -806,7 +1086,8 @@ function exportSessionCSV() {
   
   // Define CSV Header
   const headers = [
-    'ParticipantID', 'Timestamp', 'Animation', 'ActualDurationText', 'ActualDurationSec',
+    'ParticipantID', 'OrderGroup', 'TrialOrder', 'ConditionCode', 'AnimCode', 'DurCode',
+    'Gender', 'AgeGroup', 'Timestamp', 'Animation', 'ActualDurationText', 'ActualDurationSec',
     'Q1_EstimateRaw', 'Q1_EstimateText', 'Q1_EstimateMidpointSec',
     'Q2_Speed', 'Q3_TimePassage', 'Q4_Interest', 'Q5_Aesthetics',
     'E1_Happy', 'E2_Comfortable', 'E3_AtEase', 'E4_Relaxed', 'E5_Stimulated',
@@ -819,6 +1100,13 @@ function exportSessionCSV() {
   data.forEach(item => {
     const row = [
       escapeCsvCell(item.participantId),
+      escapeCsvCell(item.orderGroup || '-'),
+      item.trialOrder || '-',
+      escapeCsvCell(item.conditionCode || '-'),
+      escapeCsvCell(item.animCode || '-'),
+      escapeCsvCell(item.durCode || '-'),
+      escapeCsvCell(item.gender || '-'),
+      escapeCsvCell(item.age || '-'),
       item.timestamp,
       escapeCsvCell(item.animation),
       escapeCsvCell(item.durationText),
@@ -872,6 +1160,13 @@ function sendDataToGoogleSheets(result) {
   // Flattening or mapping key-values for easier sheet consumption
   const postData = {
     "ParticipantID": result.participantId,
+    "OrderGroup": result.orderGroup || '-',
+    "TrialOrder": result.trialOrder || '-',
+    "ConditionCode": result.conditionCode || '-',
+    "AnimCode": result.animCode || '-',
+    "DurCode": result.durCode || '-',
+    "Gender": result.gender || '-',
+    "AgeGroup": result.age || '-',
     "Timestamp": result.timestamp,
     "Animation": result.animation,
     "ActualDurationText": result.durationText,
@@ -910,4 +1205,62 @@ function sendDataToGoogleSheets(result) {
   .catch(err => {
     console.error("Error sending response to Google Sheets:", err);
   });
+}
+
+// Automatically generate the next Participant ID based on local storage data
+function getNextParticipantId() {
+  try {
+    const data = JSON.parse(localStorage.getItem('qoe_study_data') || '[]');
+    const existingIds = new Set(data.map(item => item.participantId));
+    
+    let maxNum = 0;
+    existingIds.forEach(id => {
+      if (typeof id === 'string') {
+        const match = id.match(/^P(\d+)$/);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (num > maxNum) maxNum = num;
+        }
+      }
+    });
+    
+    const nextNum = maxNum + 1;
+    return 'P' + String(nextNum).padStart(3, '0');
+  } catch (e) {
+    console.error("Error generating next participant ID:", e);
+    return 'P001';
+  }
+}
+
+// Update the Participant ID UI, order group, and hidden input value
+function updateOnboardingParticipantId(overrideId = null) {
+  // Check URL param if no override provided
+  let targetId = overrideId;
+  if (!targetId) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const paramId = urlParams.get('pid') || urlParams.get('p') || urlParams.get('id');
+    if (paramId) {
+      if (!paramId.startsWith('P')) {
+        const num = parseInt(paramId, 10);
+        targetId = !isNaN(num) ? 'P' + String(num).padStart(3, '0') : paramId;
+      } else {
+        targetId = paramId;
+      }
+    }
+  }
+
+  const nextId = targetId || getNextParticipantId();
+  const displayEl = document.getElementById('display-participant-id');
+  const displayGroupEl = document.getElementById('display-order-group');
+  const inputEl = document.getElementById('participant-id');
+  
+  if (displayEl && inputEl) {
+    displayEl.textContent = nextId;
+    inputEl.value = nextId;
+  }
+
+  if (displayGroupEl) {
+    const groupInfo = getOrderGroupInfo(nextId);
+    displayGroupEl.textContent = `🎲 分配順序組別：第 ${groupInfo.groupNumber} 組 (${groupInfo.groupCode})`;
+  }
 }

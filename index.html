@@ -45,53 +45,50 @@
       </div>
 
       <form id="form-setup" class="setup-form">
-        <div class="form-group">
-          <label for="participant-id">👤 受試者代號 (Participant ID):</label>
-          <input type="text" id="participant-id" placeholder="例如：P001" required autocomplete="off">
+        <div class="form-group text-center">
+          <label style="font-size: 1.1rem; color: var(--text-muted);">👤 您的受試者代號 (Participant ID):</label>
+          <div id="display-participant-id" style="font-size: 2.5rem; font-weight: 700; color: var(--secondary); margin: 0.5rem 0; text-shadow: 0 0 15px var(--secondary-glow);">P001</div>
+          <div id="display-order-group" style="font-size: 1rem; color: var(--primary); margin-bottom: 0.5rem; font-weight: 600;">🎲 分配順序組別：第 1 組 (S01)</div>
+          <!-- Hidden input to store for form submission -->
+          <input type="hidden" id="participant-id" value="P001">
+          <div>
+            <button type="button" id="btn-change-id" class="btn btn-secondary btn-sm" style="padding: 0.25rem 0.75rem; font-size: 0.82rem;">✏️ 自訂／切換編號</button>
+          </div>
         </div>
 
         <div class="form-group">
-          <label>⚙️ 實驗模式 (Experiment Mode):</label>
-          <div class="mode-selector">
-            <label class="radio-tile">
-              <input type="radio" name="exp-mode" value="full" checked>
-              <div class="tile-content">
-                <span class="tile-icon">🧪</span>
-                <span class="tile-title">完整隨機實驗 (9次測試)</span>
-                <span class="tile-desc">隨機播放所有 9 個影片組合，適合正式收集數據。</span>
-              </div>
+          <label>🚻 生理性別 (Gender):</label>
+          <div class="demographic-options">
+            <label class="demo-option-label">
+              <input type="radio" name="demographic-gender" value="生理男性" required>
+              <span>生理男性 (Male)</span>
             </label>
-            
-            <label class="radio-tile">
-              <input type="radio" name="exp-mode" value="single">
-              <div class="tile-content">
-                <span class="tile-icon">🎯</span>
-                <span class="tile-title">單一測試模式 (自選組合)</span>
-                <span class="tile-desc">自行選擇特定的動畫與時間進行測試，適合展示或體驗。</span>
-              </div>
+            <label class="demo-option-label">
+              <input type="radio" name="demographic-gender" value="生理女性" required>
+              <span>生理女性 (Female)</span>
             </label>
           </div>
         </div>
 
-        <div id="single-config-panel" class="single-config-panel hidden">
-          <h4>選擇自選組合：</h4>
-          <div class="config-grid">
-            <div class="form-group">
-              <label for="select-animation">動畫類型 (Animation):</label>
-              <select id="select-animation">
-                <option value="loading">載入圖示 (loading)</option>
-                <option value="咖啡杯">咖啡杯 (coffee-cup)</option>
-                <option value="百分比">百分比 (percentage)</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="select-duration">持續時間 (Duration):</label>
-              <select id="select-duration">
-                <option value="3秒">3秒 (3 seconds)</option>
-                <option value="5秒">5秒 (5 seconds)</option>
-                <option value="10秒">10秒 (10 seconds)</option>
-              </select>
-            </div>
+        <div class="form-group">
+          <label>📅 年齡級距 (Age Group):</label>
+          <div class="demographic-options" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <label class="demo-option-label">
+              <input type="radio" name="demographic-age" value="18-24歲" required>
+              <span>18–24 歲</span>
+            </label>
+            <label class="demo-option-label">
+              <input type="radio" name="demographic-age" value="25-34歲" required>
+              <span>25–34 歲</span>
+            </label>
+            <label class="demo-option-label">
+              <input type="radio" name="demographic-age" value="35-44歲" required>
+              <span>35–44 歲</span>
+            </label>
+            <label class="demo-option-label">
+              <input type="radio" name="demographic-age" value="45歲以上" required>
+              <span>45 歲以上</span>
+            </label>
           </div>
         </div>
 
@@ -126,7 +123,7 @@
       <div class="survey-header text-center">
         <h2>體驗評估問卷</h2>
         <p class="subtitle">Experience Evaluation Questionnaire</p>
-        <div id="survey-current-info" class="trial-info-banner">影片類型: 載入動畫 | 持續時間: 3秒</div>
+        <div id="survey-current-info" class="trial-info-banner">順序組別: S01 | 評估進度: 1 / 9</div>
       </div>
 
       <form id="form-questionnaire" class="survey-form">
@@ -180,7 +177,7 @@
             </div>
             
             <div class="sd-scale">
-              <span class="sd-left">Slow (慢)</span>
+              <span class="sd-left">Fast (快)</span>
               <div class="sd-options">
                 <label class="sd-option"><input type="radio" name="q2" value="1" required><span>1</span></label>
                 <label class="sd-option"><input type="radio" name="q2" value="2"><span>2</span></label>
@@ -188,7 +185,7 @@
                 <label class="sd-option"><input type="radio" name="q2" value="4"><span>4</span></label>
                 <label class="sd-option"><input type="radio" name="q2" value="5"><span>5</span></label>
               </div>
-              <span class="sd-right font-right">Fast (快)</span>
+              <span class="sd-right font-right">Slow (慢)</span>
             </div>
           </div>
 
@@ -203,7 +200,7 @@
             </div>
             
             <div class="sd-scale">
-              <span class="sd-left">Long (長)</span>
+              <span class="sd-left">Short (短)</span>
               <div class="sd-options">
                 <label class="sd-option"><input type="radio" name="q3" value="1" required><span>1</span></label>
                 <label class="sd-option"><input type="radio" name="q3" value="2"><span>2</span></label>
@@ -211,7 +208,7 @@
                 <label class="sd-option"><input type="radio" name="q3" value="4"><span>4</span></label>
                 <label class="sd-option"><input type="radio" name="q3" value="5"><span>5</span></label>
               </div>
-              <span class="sd-right font-right">Short (短)</span>
+              <span class="sd-right font-right">Long (長)</span>
             </div>
           </div>
 
@@ -490,9 +487,14 @@
 
     <!-- SECTION 5: Researcher Dashboard (Active when tab is selected) -->
     <section id="sec-dashboard" class="card hidden">
-      <div class="dashboard-header">
-        <h2>📊 研究數據分析控制台</h2>
-        <p class="subtitle">Researcher Analytics Dashboard</p>
+      <div class="dashboard-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div>
+          <h2>📊 研究數據分析控制台</h2>
+          <p class="subtitle">Researcher Analytics Dashboard</p>
+        </div>
+        <div>
+          <button id="btn-lock-dashboard" class="btn btn-secondary btn-sm" style="font-size: 0.85rem; padding: 0.4rem 0.8rem;">🔒 鎖定並隱藏後台</button>
+        </div>
       </div>
 
       <!-- Quick Stats Panels -->
@@ -577,6 +579,59 @@
         </div>
       </div>
 
+      <!-- 9x9 Latin Square Matrix Visualization -->
+      <div class="dashboard-section mt-4">
+        <div class="dashboard-section-header">
+          <div>
+            <h3>🔬 9×9 拉丁方格平衡配置表 (Latin Square Matrix)</h3>
+            <p class="section-intro" style="margin: 0.25rem 0 0 0;">
+              本研究採 9×9 隨機化拉丁方格法平衡 9 種實驗情境呈現順序，有效控制順序、疲勞與練習效應。受試者依編號模除 9 對應各列順序組別。
+            </p>
+          </div>
+          <div class="header-actions">
+            <button id="btn-rerandomize-ls" class="btn btn-secondary btn-sm">🔄 重新隨機生成拉丁方格</button>
+          </div>
+        </div>
+
+        <!-- Condition Legend -->
+        <div class="ls-legend-box mt-3 mb-3">
+          <div class="ls-legend-title" style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.5rem;"><strong>九個實驗條件因子對照說明 (C01–C09)：</strong></div>
+          <div class="ls-legend-grid">
+            <span class="badge-cond badge-anim-a1"><strong>C01</strong>: 載入圖示 3秒 (A1B1)</span>
+            <span class="badge-cond badge-anim-a1"><strong>C02</strong>: 載入圖示 5秒 (A1B2)</span>
+            <span class="badge-cond badge-anim-a1"><strong>C03</strong>: 載入圖示 10秒 (A1B3)</span>
+            <span class="badge-cond badge-anim-a2"><strong>C04</strong>: 咖啡杯 3秒 (A2B1)</span>
+            <span class="badge-cond badge-anim-a2"><strong>C05</strong>: 咖啡杯 5秒 (A2B2)</span>
+            <span class="badge-cond badge-anim-a2"><strong>C06</strong>: 咖啡杯 10秒 (A2B3)</span>
+            <span class="badge-cond badge-anim-a3"><strong>C07</strong>: 百分比 3秒 (A3B1)</span>
+            <span class="badge-cond badge-anim-a3"><strong>C08</strong>: 百分比 5秒 (A3B2)</span>
+            <span class="badge-cond badge-anim-a3"><strong>C09</strong>: 百分比 10秒 (A3B3)</span>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table ls-table" id="table-latin-square">
+            <thead>
+              <tr>
+                <th style="min-width: 140px;">順序組別 (對應受試者)</th>
+                <th>序號 1</th>
+                <th>序號 2</th>
+                <th>序號 3</th>
+                <th>序號 4</th>
+                <th>序號 5</th>
+                <th>序號 6</th>
+                <th>序號 7</th>
+                <th>序號 8</th>
+                <th>序號 9</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-latin-square">
+              <!-- Rendered dynamically by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- Controls & CSV Data Export -->
       <div class="dashboard-section mt-4">
         <div class="dashboard-section-header">
@@ -593,6 +648,10 @@
             <thead>
               <tr>
                 <th>受試者ID</th>
+                <th>順序組別</th>
+                <th>呈現序</th>
+                <th>情境代碼</th>
+                <th>因子組合</th>
                 <th>動畫類型</th>
                 <th>客觀時間</th>
                 <th>Q1估值</th>
@@ -607,7 +666,7 @@
             </thead>
             <tbody>
               <tr>
-                <td colspan="11" class="text-center text-muted">目前尚無實驗紀錄。請前往「進行實驗」填寫問卷，或點擊「載入範例模擬數據」。</td>
+                <td colspan="13" class="text-center text-muted">目前尚無實驗紀錄。請前往「進行實驗」填寫問卷，或點擊「載入範例模擬數據」。</td>
               </tr>
             </tbody>
           </table>
