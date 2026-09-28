@@ -14,7 +14,11 @@ const CONDITIONS = {
 const TRIALS = Object.values(CONDITIONS);
 
 // Google Sheets Web App Endpoint for automated data collection
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwMcJ8kttJobodGInq4jrTJUivcORMAz2Rw3L_HzjkA73mRLaPqRnLFv7zogGB-FKUM/exec";
+const DEFAULT_GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwMcJ8kttJobodGInq4jrTJUivcORMAz2Rw3L_HzjkA73mRLaPqRnLFv7zogGB-FKUM/exec";
+function getGoogleScriptUrl() {
+  return localStorage.getItem('qoe_google_script_url') || DEFAULT_GOOGLE_SCRIPT_URL;
+}
+const GOOGLE_SCRIPT_URL = getGoogleScriptUrl();
 
 // Q1 response midpoint conversion table for scientific calculation (seconds estimation)
 const Q1_VALUES = {
@@ -287,6 +291,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnRerandomizeLs = document.getElementById('btn-rerandomize-ls');
   if (btnRerandomizeLs) {
     btnRerandomizeLs.addEventListener('click', rerandomizeLatinSquare);
+  }
+
+  const btnSyncSheets = document.getElementById('btn-sync-sheets');
+  if (btnSyncSheets) {
+    btnSyncSheets.addEventListener('click', syncAllDataToGoogleSheets);
+  }
+
+  const btnConfigSheets = document.getElementById('btn-config-sheets');
+  if (btnConfigSheets) {
+    btnConfigSheets.addEventListener('click', configureGoogleScriptUrl);
   }
 
   // --- Researcher Mode Access Control (Hidden by default, accessible only to researcher) ---
@@ -1247,22 +1261,92 @@ function exportSessionCSV() {
 
 // Automatically send consolidated wide-format participant data (1 row per participant, C01 to C09) to Google Sheets
 function sendParticipantWideRowToGoogleSheets(wideData) {
-  if (!GOOGLE_SCRIPT_URL) return;
+  const url = getGoogleScriptUrl();
+  if (!url) {
+    console.warn("No Google Script URL configured.");
+    return Promise.resolve({ success: false, error: 'No URL' });
+  }
 
-  fetch(GOOGLE_SCRIPT_URL, {
+  // Use 'text/plain;charset=utf-8' with 'no-cors' mode
+  // This guarantees browser does NOT drop the body or trigger CORS preflight failure
+  return fetch(url, {
     method: 'POST',
-    mode: 'no-cors', // Avoids CORS preflight failures on Web App redirect
+    mode: 'no-cors',
     headers: {
-      'Content-Type': 'application/json'
+      'Content-Type': 'text/plain;charset=utf-8'
     },
     body: JSON.stringify(wideData)
   })
   .then(() => {
     console.log("Consolidated participant data (1 row, C01-C09) synced to Google Sheets successfully.");
+    return { success: true };
   })
   .catch(err => {
     console.error("Error syncing consolidated response to Google Sheets:", err);
+    return { success: false, error: err };
   });
+}
+
+// Re-sync all completed participants stored in local database to Google Sheets
+function syncAllDataToGoogleSheets() {
+  const data = JSON.parse(localStorage.getItem('qoe_study_data') || '[]');
+  if (data.length === 0) {
+    alert('⚠️ 目前本機數據庫中尚無任何實驗紀錄可供同步！\n\n您可以先點擊「載入範例模擬數據」測試，或於受試者完成問卷後再行同步。');
+    return;
+  }
+
+  // Group trials by participantId preserving insertion order
+  const participantsMap = new Map();
+  data.forEach(item => {
+    if (!participantsMap.has(item.participantId)) {
+      participantsMap.set(item.participantId, []);
+    }
+    participantsMap.get(item.participantId).push(item);
+  });
+
+  const wideRows = [];
+  participantsMap.forEach((trials, pId) => {
+    wideRows.push(buildParticipantWideData(pId, trials));
+  });
+
+  if (wideRows.length === 0) {
+    alert('⚠️ 無有效受試者數據可同步！');
+    return;
+  }
+
+  const btnSync = document.getElementById('btn-sync-sheets');
+  if (btnSync) {
+    btnSync.disabled = true;
+    btnSync.textContent = '⏳ 正在同步至 Google Sheets...';
+  }
+
+  sendParticipantWideRowToGoogleSheets(wideRows)
+    .then(() => {
+      alert(`✅ 已向 Google Sheets 發送 ${wideRows.length} 位受試者資料（一人一列 C01–C09，共 131 欄）進行同步！\n\n請開啟 Google Sheets 線上試算表確認更新。若尚未同步，請確認 Google Apps Script 已完成新版部署。`);
+    })
+    .finally(() => {
+      if (btnSync) {
+        btnSync.disabled = false;
+        btnSync.textContent = '☁️ 重新同步至 Google Sheets';
+      }
+    });
+}
+
+// Allow researcher to inspect or change Google Apps Script Web App URL
+function configureGoogleScriptUrl() {
+  const currentUrl = getGoogleScriptUrl();
+  const newUrl = prompt('請輸入 Google Apps Script Web App 部署網址 (留空則還原為預設值)：\n\n目前設定：\n' + currentUrl, currentUrl);
+  if (newUrl !== null) {
+    if (newUrl.trim() === '') {
+      localStorage.removeItem('qoe_google_script_url');
+      alert('已還原為預設 Google Script 網址！\n' + DEFAULT_GOOGLE_SCRIPT_URL);
+    } else if (newUrl.trim().startsWith('http')) {
+      localStorage.setItem('qoe_google_script_url', newUrl.trim());
+      alert('✅ Google Script 網址已更新並儲存！');
+    } else {
+      alert('⚠️ 輸入的網址格式不正確，需以 https:// 開頭。');
+    }
+  }
 }
 
 // Check if a Participant ID already exists in stored data
