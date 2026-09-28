@@ -47,8 +47,9 @@
       <form id="form-setup" class="setup-form">
         <div class="form-group text-center">
           <label style="font-size: 1.1rem; color: var(--text-muted);">👤 您的受試者代號 (Participant ID):</label>
-          <div id="display-participant-id" style="font-size: 2.5rem; font-weight: 700; color: var(--secondary); margin: 0.5rem 0; text-shadow: 0 0 15px var(--secondary-glow);">P001</div>
-          <div id="display-order-group" style="font-size: 1rem; color: var(--primary); margin-bottom: 0.5rem; font-weight: 600;">🎲 分配順序組別：第 1 組 (S01)</div>
+          <div id="display-participant-id" style="font-size: 2.5rem; font-weight: 700; color: #047857; margin: 0.5rem 0;">P001</div>
+          <div id="display-order-group" style="font-size: 1rem; color: var(--primary); margin-bottom: 0.3rem; font-weight: 600;">🎲 分配順序組別：第 1 組 (S01)</div>
+          <div id="id-status-msg" style="font-size: 0.88rem; font-weight: 600; color: #059669; margin-bottom: 0.5rem;">✅ 受試者代號可用（未重複）</div>
           <!-- Hidden input to store for form submission -->
           <input type="hidden" id="participant-id" value="P001">
           <div>
@@ -166,33 +167,10 @@
           
           <p class="section-intro">以下題目均為 5 點語意差異量表。請在左右兩端的形容詞之間，勾選<strong>最貼近您觀看該動畫時真實感受</strong>的圓圈。</p>
 
-          <!-- Q2 Perceived Speed -->
+          <!-- Q2 Subjective Passage of Time (原題 3) -->
           <div class="question-block sd-item">
             <div class="sd-header">
               <span class="sd-q-num">Q2</span>
-              <span class="sd-q-title">感知速度 (Perceived Speed)</span>
-            </div>
-            <div class="dimension-explain">
-              <strong>💡 向度說明【感知速度】：</strong>您主觀感覺到的系統載入速度快慢。
-            </div>
-            
-            <div class="sd-scale">
-              <span class="sd-left">Fast (快)</span>
-              <div class="sd-options">
-                <label class="sd-option"><input type="radio" name="q2" value="1" required><span>1</span></label>
-                <label class="sd-option"><input type="radio" name="q2" value="2"><span>2</span></label>
-                <label class="sd-option"><input type="radio" name="q2" value="3"><span>3</span></label>
-                <label class="sd-option"><input type="radio" name="q2" value="4"><span>4</span></label>
-                <label class="sd-option"><input type="radio" name="q2" value="5"><span>5</span></label>
-              </div>
-              <span class="sd-right font-right">Slow (慢)</span>
-            </div>
-          </div>
-
-          <!-- Q3 Subjective Passage of Time -->
-          <div class="question-block sd-item">
-            <div class="sd-header">
-              <span class="sd-q-num">Q3</span>
               <span class="sd-q-title">時間通過感 (Subjective Passage of Time)</span>
             </div>
             <div class="dimension-explain">
@@ -202,20 +180,20 @@
             <div class="sd-scale">
               <span class="sd-left">Short (短)</span>
               <div class="sd-options">
-                <label class="sd-option"><input type="radio" name="q3" value="1" required><span>1</span></label>
-                <label class="sd-option"><input type="radio" name="q3" value="2"><span>2</span></label>
-                <label class="sd-option"><input type="radio" name="q3" value="3"><span>3</span></label>
-                <label class="sd-option"><input type="radio" name="q3" value="4"><span>4</span></label>
-                <label class="sd-option"><input type="radio" name="q3" value="5"><span>5</span></label>
+                <label class="sd-option"><input type="radio" name="q2" value="1" required><span>1</span></label>
+                <label class="sd-option"><input type="radio" name="q2" value="2"><span>2</span></label>
+                <label class="sd-option"><input type="radio" name="q2" value="3"><span>3</span></label>
+                <label class="sd-option"><input type="radio" name="q2" value="4"><span>4</span></label>
+                <label class="sd-option"><input type="radio" name="q2" value="5"><span>5</span></label>
               </div>
               <span class="sd-right font-right">Long (長)</span>
             </div>
           </div>
 
-          <!-- Q4 Perceived Interest -->
+          <!-- Q3 Perceived Interest (原題 4) -->
           <div class="question-block sd-item">
             <div class="sd-header">
-              <span class="sd-q-num">Q4</span>
+              <span class="sd-q-num">Q3</span>
               <span class="sd-q-title">感知趣味性 (Perceived Interest)</span>
             </div>
             <div class="dimension-explain">
@@ -225,43 +203,20 @@
             <div class="sd-scale">
               <span class="sd-left">Boring (無趣)</span>
               <div class="sd-options">
-                <label class="sd-option"><input type="radio" name="q4" value="1" required><span>1</span></label>
-                <label class="sd-option"><input type="radio" name="q4" value="2"><span>2</span></label>
-                <label class="sd-option"><input type="radio" name="q4" value="3"><span>3</span></label>
-                <label class="sd-option"><input type="radio" name="q4" value="4"><span>4</span></label>
-                <label class="sd-option"><input type="radio" name="q4" value="5"><span>5</span></label>
+                <label class="sd-option"><input type="radio" name="q3" value="1" required><span>1</span></label>
+                <label class="sd-option"><input type="radio" name="q3" value="2"><span>2</span></label>
+                <label class="sd-option"><input type="radio" name="q3" value="3"><span>3</span></label>
+                <label class="sd-option"><input type="radio" name="q3" value="4"><span>4</span></label>
+                <label class="sd-option"><input type="radio" name="q3" value="5"><span>5</span></label>
               </div>
               <span class="sd-right font-right">Interesting (有趣)</span>
             </div>
           </div>
 
-          <!-- Q5 Perceived Aesthetics -->
-          <div class="question-block sd-item">
-            <div class="sd-header">
-              <span class="sd-q-num">Q5</span>
-              <span class="sd-q-title">感知美感 (Perceived Aesthetics)</span>
-            </div>
-            <div class="dimension-explain">
-              <strong>💡 向度說明【感知美感】：</strong>您對這部動畫的視覺美學、色彩與流暢度的滿意度。
-            </div>
-            
-            <div class="sd-scale">
-              <span class="sd-left">Low (低)</span>
-              <div class="sd-options">
-                <label class="sd-option"><input type="radio" name="q5" value="1" required><span>1</span></label>
-                <label class="sd-option"><input type="radio" name="q5" value="2"><span>2</span></label>
-                <label class="sd-option"><input type="radio" name="q5" value="3"><span>3</span></label>
-                <label class="sd-option"><input type="radio" name="q5" value="4"><span>4</span></label>
-                <label class="sd-option"><input type="radio" name="q5" value="5"><span>5</span></label>
-              </div>
-              <span class="sd-right font-right">High (高)</span>
-            </div>
-          </div>
-
-          <!-- Q6 - Q10 Affective / Emotional SD Table -->
+          <!-- Q4 - Q7 Affective / Emotional SD Table (原題 6, 7, 9, 10，已刪除原題 8) -->
           <div class="question-block mt-4">
             <div class="sd-header">
-              <span class="sd-q-num">Q6–Q10</span>
+              <span class="sd-q-num">Q4–Q7</span>
               <span class="sd-q-title">情感／情緒向度 (Affective & Emotional Response)</span>
             </div>
             <div class="dimension-explain">
@@ -282,72 +237,58 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <!-- E1 -->
+                  <!-- Q4 (原 E1) -->
                   <tr>
-                    <td class="cell-left"><span class="badge-e">E1</span> Sad (悲傷)</td>
+                    <td class="cell-left"><span class="badge-e">Q4</span> Sad (悲傷)</td>
                     <td colspan="5" class="cell-scale-group">
                       <div class="table-radio-row">
-                        <label><input type="radio" name="e1" value="1" required></label>
-                        <label><input type="radio" name="e1" value="2"></label>
-                        <label><input type="radio" name="e1" value="3"></label>
-                        <label><input type="radio" name="e1" value="4"></label>
-                        <label><input type="radio" name="e1" value="5"></label>
+                        <label><input type="radio" name="q4" value="1" required></label>
+                        <label><input type="radio" name="q4" value="2"></label>
+                        <label><input type="radio" name="q4" value="3"></label>
+                        <label><input type="radio" name="q4" value="4"></label>
+                        <label><input type="radio" name="q4" value="5"></label>
                       </div>
                     </td>
                     <td class="cell-right">Happy (愉快)</td>
                   </tr>
-                  <!-- E2 -->
+                  <!-- Q5 (原 E2) -->
                   <tr>
-                    <td class="cell-left"><span class="badge-e">E2</span> Uncomfortable (不舒適)</td>
+                    <td class="cell-left"><span class="badge-e">Q5</span> Uncomfortable (不舒適)</td>
                     <td colspan="5" class="cell-scale-group">
                       <div class="table-radio-row">
-                        <label><input type="radio" name="e2" value="1" required></label>
-                        <label><input type="radio" name="e2" value="2"></label>
-                        <label><input type="radio" name="e2" value="3"></label>
-                        <label><input type="radio" name="e2" value="4"></label>
-                        <label><input type="radio" name="e2" value="5"></label>
+                        <label><input type="radio" name="q5" value="1" required></label>
+                        <label><input type="radio" name="q5" value="2"></label>
+                        <label><input type="radio" name="q5" value="3"></label>
+                        <label><input type="radio" name="q5" value="4"></label>
+                        <label><input type="radio" name="q5" value="5"></label>
                       </div>
                     </td>
                     <td class="cell-right">Comfortable (舒適)</td>
                   </tr>
-                  <!-- E3 -->
+                  <!-- Q6 (原 E4) -->
                   <tr>
-                    <td class="cell-left"><span class="badge-e">E3</span> Tense (緊繃)</td>
+                    <td class="cell-left"><span class="badge-e">Q6</span> Anxious (焦慮)</td>
                     <td colspan="5" class="cell-scale-group">
                       <div class="table-radio-row">
-                        <label><input type="radio" name="e3" value="1" required></label>
-                        <label><input type="radio" name="e3" value="2"></label>
-                        <label><input type="radio" name="e3" value="3"></label>
-                        <label><input type="radio" name="e3" value="4"></label>
-                        <label><input type="radio" name="e3" value="5"></label>
-                      </div>
-                    </td>
-                    <td class="cell-right">At Ease (放鬆)</td>
-                  </tr>
-                  <!-- E4 -->
-                  <tr>
-                    <td class="cell-left"><span class="badge-e">E4</span> Anxious (焦慮)</td>
-                    <td colspan="5" class="cell-scale-group">
-                      <div class="table-radio-row">
-                        <label><input type="radio" name="e4" value="1" required></label>
-                        <label><input type="radio" name="e4" value="2"></label>
-                        <label><input type="radio" name="e4" value="3"></label>
-                        <label><input type="radio" name="e4" value="4"></label>
-                        <label><input type="radio" name="e4" value="5"></label>
+                        <label><input type="radio" name="q6" value="1" required></label>
+                        <label><input type="radio" name="q6" value="2"></label>
+                        <label><input type="radio" name="q6" value="3"></label>
+                        <label><input type="radio" name="q6" value="4"></label>
+                        <label><input type="radio" name="q6" value="5"></label>
                       </div>
                     </td>
                     <td class="cell-right">Relaxed (輕鬆)</td>
                   </tr>
-                  <!-- E5 -->
+                  <!-- Q7 (原 E5) -->
                   <tr>
-                    <td class="cell-left"><span class="badge-e">E5</span> Unimpressed (無感)</td>
+                    <td class="cell-left"><span class="badge-e">Q7</span> Unimpressed (無感)</td>
                     <td colspan="5" class="cell-scale-group">
                       <div class="table-radio-row">
-                        <label><input type="radio" name="e5" value="1" required></label>
-                        <label><input type="radio" name="e5" value="2"></label>
-                        <label><input type="radio" name="e5" value="3"></label>
-                        <label><input type="radio" name="e5" value="4"></label>
-                        <label><input type="radio" name="e5" value="5"></label>
+                        <label><input type="radio" name="q7" value="1" required></label>
+                        <label><input type="radio" name="q7" value="2"></label>
+                        <label><input type="radio" name="q7" value="3"></label>
+                        <label><input type="radio" name="q7" value="4"></label>
+                        <label><input type="radio" name="q7" value="5"></label>
                       </div>
                     </td>
                     <td class="cell-right">Stimulated (驚喜)</td>
@@ -357,10 +298,10 @@
             </div>
           </div>
 
-          <!-- Q11 - Q15 Functional / Utilitarian SD Table -->
+          <!-- Q8 - Q10 Functional / Utilitarian SD Table (原題 11, 12, 13，已刪除原題 14, 15) -->
           <div class="question-block mt-4">
             <div class="sd-header">
-              <span class="sd-q-num">Q11–Q15</span>
+              <span class="sd-q-num">Q8–Q10</span>
               <span class="sd-q-title">功能／實用向度 (Functional & Utilitarian Response)</span>
             </div>
             <div class="dimension-explain">
@@ -381,75 +322,47 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <!-- U1 -->
+                  <!-- Q8 (原 U1) -->
                   <tr>
-                    <td class="cell-left"><span class="badge-u">U1</span> Impatient (不耐煩)</td>
+                    <td class="cell-left"><span class="badge-u">Q8</span> Impatient (不耐煩)</td>
                     <td colspan="5" class="cell-scale-group">
                       <div class="table-radio-row">
-                        <label><input type="radio" name="u1" value="1" required></label>
-                        <label><input type="radio" name="u1" value="2"></label>
-                        <label><input type="radio" name="u1" value="3"></label>
-                        <label><input type="radio" name="u1" value="4"></label>
-                        <label><input type="radio" name="u1" value="5"></label>
+                        <label><input type="radio" name="q8" value="1" required></label>
+                        <label><input type="radio" name="q8" value="2"></label>
+                        <label><input type="radio" name="q8" value="3"></label>
+                        <label><input type="radio" name="q8" value="4"></label>
+                        <label><input type="radio" name="q8" value="5"></label>
                       </div>
                     </td>
                     <td class="cell-right">Patient (有耐心)</td>
                   </tr>
-                  <!-- U2 -->
+                  <!-- Q9 (原 U2) -->
                   <tr>
-                    <td class="cell-left"><span class="badge-u">U2</span> Tired (疲倦)</td>
+                    <td class="cell-left"><span class="badge-u">Q9</span> Tired (疲倦)</td>
                     <td colspan="5" class="cell-scale-group">
                       <div class="table-radio-row">
-                        <label><input type="radio" name="u2" value="1" required></label>
-                        <label><input type="radio" name="u2" value="2"></label>
-                        <label><input type="radio" name="u2" value="3"></label>
-                        <label><input type="radio" name="u2" value="4"></label>
-                        <label><input type="radio" name="u2" value="5"></label>
+                        <label><input type="radio" name="q9" value="1" required></label>
+                        <label><input type="radio" name="q9" value="2"></label>
+                        <label><input type="radio" name="q9" value="3"></label>
+                        <label><input type="radio" name="q9" value="4"></label>
+                        <label><input type="radio" name="q9" value="5"></label>
                       </div>
                     </td>
                     <td class="cell-right">Energetic (有活力)</td>
                   </tr>
-                  <!-- U3 -->
+                  <!-- Q10 (原 U3) -->
                   <tr>
-                    <td class="cell-left"><span class="badge-u">U3</span> Helpless (無力感)</td>
+                    <td class="cell-left"><span class="badge-u">Q10</span> Helpless (無力感)</td>
                     <td colspan="5" class="cell-scale-group">
                       <div class="table-radio-row">
-                        <label><input type="radio" name="u3" value="1" required></label>
-                        <label><input type="radio" name="u3" value="2"></label>
-                        <label><input type="radio" name="u3" value="3"></label>
-                        <label><input type="radio" name="u3" value="4"></label>
-                        <label><input type="radio" name="u3" value="5"></label>
+                        <label><input type="radio" name="q10" value="1" required></label>
+                        <label><input type="radio" name="q10" value="2"></label>
+                        <label><input type="radio" name="q10" value="3"></label>
+                        <label><input type="radio" name="q10" value="4"></label>
+                        <label><input type="radio" name="q10" value="5"></label>
                       </div>
                     </td>
                     <td class="cell-right">Powerful (有掌控感)</td>
-                  </tr>
-                  <!-- U4 -->
-                  <tr>
-                    <td class="cell-left"><span class="badge-u">U4</span> Annoyed (煩躁)</td>
-                    <td colspan="5" class="cell-scale-group">
-                      <div class="table-radio-row">
-                        <label><input type="radio" name="u4" value="1" required></label>
-                        <label><input type="radio" name="u4" value="2"></label>
-                        <label><input type="radio" name="u4" value="3"></label>
-                        <label><input type="radio" name="u4" value="4"></label>
-                        <label><input type="radio" name="u4" value="5"></label>
-                      </div>
-                    </td>
-                    <td class="cell-right">Excited (興奮期待)</td>
-                  </tr>
-                  <!-- U5 -->
-                  <tr>
-                    <td class="cell-left"><span class="badge-u">U5</span> Confused (困惑)</td>
-                    <td colspan="5" class="cell-scale-group">
-                      <div class="table-radio-row">
-                        <label><input type="radio" name="u5" value="1" required></label>
-                        <label><input type="radio" name="u5" value="2"></label>
-                        <label><input type="radio" name="u5" value="3"></label>
-                        <label><input type="radio" name="u5" value="4"></label>
-                        <label><input type="radio" name="u5" value="5"></label>
-                      </div>
-                    </td>
-                    <td class="cell-right">Confident (有信心)</td>
                   </tr>
                 </tbody>
               </table>
@@ -469,18 +382,29 @@
       <div class="thankyou-content">
         <span class="completed-icon">🎉</span>
         <h2>實驗全部完成！</h2>
-        <p class="lead">感謝您的協助與寶貴數據，這對我們的論文研究至關重要！</p>
-        <p class="subtitle">All trials are complete. Thank you for your contribution to our research!</p>
+        
+        <div class="sync-status-badge" style="display: inline-flex; align-items: center; gap: 0.5rem; background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; padding: 0.6rem 1.4rem; border-radius: 30px; font-weight: 600; font-size: 1rem; margin: 0.5rem 0;">
+          <span>✅</span>
+          <span>數據結果已自動上傳，感謝填寫實驗問卷！</span>
+        </div>
+
+        <p class="lead" style="color: #111827; font-size: 1.15rem; font-weight: 500; margin-top: 0.5rem;">
+          感謝您的協助與寶貴數據，這對我們的論文研究至關重要！
+        </p>
+        <p class="subtitle" style="color: #4b5563; font-size: 0.95rem;">
+          受試者也可以自行下載自己做的結果備存。
+        </p>
         
         <div class="completed-summary mt-4">
-          <p>受試者代號: <strong id="summary-p-id">-</strong></p>
-          <p>已完成測試組合數: <strong id="summary-trial-count">0 / 9</strong></p>
+          <p><span>受試者代號:</span> <strong id="summary-p-id">-</strong></p>
+          <p><span>已完成測試組合數:</span> <strong id="summary-trial-count">0 / 9</strong></p>
+          <p><span>數據同步狀態:</span> <strong style="color: #059669;">已同步至 Excel 雲端紀錄 (一受試者一列 C01–C09)</strong></p>
         </div>
 
         <div class="thankyou-actions mt-4">
           <button id="btn-restart" class="btn btn-secondary">返回登入首頁</button>
-          <button id="btn-download-session" class="btn btn-primary" style="background: linear-gradient(135deg, var(--secondary) 0%, #059669 100%); border:none; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);">📥 下載我的答題紀錄 (CSV)</button>
-          <button id="btn-view-results" class="btn btn-primary hidden">📊 查看本機研究數據</button>
+          <button id="btn-download-session" class="btn btn-primary" style="background: linear-gradient(135deg, var(--secondary) 0%, #047857 100%); border:none; box-shadow: 0 4px 15px rgba(5, 150, 105, 0.25);">📥 下載我的實驗結果 (Excel / CSV)</button>
+          <button id="btn-view-results" class="btn btn-secondary hidden">📊 查看本機研究數據</button>
         </div>
       </div>
     </section>
@@ -508,8 +432,8 @@
           <span class="stat-label">累積評估次數</span>
         </div>
         <div class="stat-card">
-          <span class="stat-num" id="stat-avg-aesthetics">-</span>
-          <span class="stat-label">平均美感評分 (1-5)</span>
+          <span class="stat-num" id="stat-avg-emotional">-</span>
+          <span class="stat-label">平均情感評分 (1-5)</span>
         </div>
         <div class="stat-card">
           <span class="stat-num" id="stat-avg-utilitarian">-</span>
@@ -525,30 +449,26 @@
             <h4>🧠 感受與感知向度 (Perception)</h4>
             <ul>
               <li><strong>主觀時間估計 (Subjective Time) [Q1]</strong>: 探討心理時鐘 (Cognitive Clock) 的偏誤。研究指出，當環境給予的刺激較多或注意力被轉移時，大腦會低估時間；反之在空無一物的等待（如簡單的轉圈圈）中會高估時間。</li>
-              <li><strong>感知速度 (Perceived Speed) [Q2]</strong>: 這是 QoE 的核心指標。即使實際速度相同，動態感強、變化頻繁的動畫能給予系統快速響應的錯覺。</li>
-              <li><strong>時間通過感 (Subjective Passage of Time) [Q3]</strong>: 反映時間流逝感。通常與趣味性呈顯著正相關。</li>
-              <li><strong>感知趣味性 (Perceived Interest) [Q4]</strong>: 分心假說 (Distraction Hypothesis) 的驗證。趣味性的等待動畫能實質降低等待帶來的阻抗。</li>
-              <li><strong>感知美感 (Perceived Aesthetics) [Q5]</strong>: 視覺滿意度。影響使用者對應用程式的品牌忠誠度與品質預期。</li>
+              <li><strong>時間通過感 (Subjective Passage of Time) [Q2]</strong>: 反映時間流逝感（原題 3）。通常與趣味性呈顯著正相關。</li>
+              <li><strong>感知趣味性 (Perceived Interest) [Q3]</strong>: 分心假說 (Distraction Hypothesis) 的驗證（原題 4）。趣味性的等待動畫能實質降低等待帶來的阻抗。</li>
             </ul>
           </div>
           <div class="guide-box">
             <h4>❤️ 情感與實用向度 (Emotional & Utilitarian)</h4>
             <ul>
-              <li><strong>情感向度 (Affective) [Q6–Q10]</strong>: 
+              <li><strong>情感向度 (Affective) [Q4–Q7]</strong>: 
                 <ul>
-                  <li><strong>E1 Sad ↔ Happy</strong>：衡量情緒基調。</li>
-                  <li><strong>E2 Uncomfortable ↔ Comfortable</strong>：對等待界面佈局與動態的和諧度感受。</li>
-                  <li><strong>E3 Tense ↔ At Ease</strong>、<strong>E4 Anxious ↔ Relaxed</strong>：檢驗動畫是否能起到鎮靜 (Soothing) 作用，減低伺服器無回應帶來的焦慮感。</li>
-                  <li><strong>E5 Unimpressed ↔ Stimulated</strong>：衡量動畫帶來的新穎性與驚喜。</li>
+                  <li><strong>Q4 Sad ↔ Happy</strong>：衡量情緒基調（原題 6 / E1）。</li>
+                  <li><strong>Q5 Uncomfortable ↔ Comfortable</strong>：對等待界面動態的和諧滿意感受（原題 7 / E2）。</li>
+                  <li><strong>Q6 Anxious ↔ Relaxed</strong>：檢驗動畫是否能起到鎮靜作用，減低焦慮感（原題 9 / E4）。</li>
+                  <li><strong>Q7 Unimpressed ↔ Stimulated</strong>：衡量動畫帶來的新穎性與驚喜感（原題 10 / E5）。</li>
                 </ul>
               </li>
-              <li><strong>實用向度 (Utilitarian) [Q11–Q15]</strong>:
+              <li><strong>實用向度 (Utilitarian) [Q8–Q10]</strong>:
                 <ul>
-                  <li><strong>U1 Impatient ↔ Patient</strong>：直接衡量動畫對延長耐心阈值的程度。</li>
-                  <li><strong>U2 Tired ↔ Energetic</strong>：動畫流暢度對精力喚醒的影響。</li>
-                  <li><strong>U3 Helpless ↔ Powerful</strong>：極具關鍵。百分比或進度條能提供高度的<strong>狀態回饋</strong>，讓使用者感受到「掌控感」。</li>
-                  <li><strong>U4 Annoyed ↔ Excited</strong>：動畫是否能化等待為期待。</li>
-                  <li><strong>U5 Confused ↔ Confident</strong>：對系統是否正常運作的把握。</li>
+                  <li><strong>Q8 Impatient ↔ Patient</strong>：直接衡量動畫對延長耐心阈值的程度（原題 11 / U1）。</li>
+                  <li><strong>Q9 Tired ↔ Energetic</strong>：動畫流暢度對精力喚醒的影響（原題 12 / U2）。</li>
+                  <li><strong>Q10 Helpless ↔ Powerful</strong>：提供狀態回饋，讓使用者感受到「掌控感」（原題 13 / U3）。</li>
                 </ul>
               </li>
             </ul>
@@ -562,7 +482,7 @@
         <div class="grid-2col">
           <!-- QoE score by Animation Type -->
           <div class="chart-card">
-            <h4>三種等待動畫的總體 QoE 評分 (Q2-Q15 平均值，越高越佳)</h4>
+            <h4>三種等待動畫的總體 QoE 評分 (Q2-Q10 平均值，越高越佳)</h4>
             <div class="bar-chart-container" id="chart-animation-qoe">
               <!-- Rendered by JS -->
               <div class="chart-placeholder">暫無數據，請先進行實驗</div>
@@ -638,7 +558,8 @@
           <h3>📁 原始實驗數據列表</h3>
           <div class="header-actions">
             <button id="btn-load-samples" class="btn btn-secondary btn-sm">🧬 載入範例模擬數據</button>
-            <button id="btn-export-csv" class="btn btn-primary btn-sm">📥 匯出為 CSV 檔案</button>
+            <button id="btn-export-csv" class="btn btn-primary btn-sm">📥 匯出 Excel / CSV (一人一列 C01–C09)</button>
+            <button id="btn-export-long-csv" class="btn btn-secondary btn-sm">📋 匯出試驗明細</button>
             <button id="btn-clear-db" class="btn btn-danger btn-sm">🗑️ 清空所有數據</button>
           </div>
         </div>
@@ -655,12 +576,11 @@
                 <th>動畫類型</th>
                 <th>客觀時間</th>
                 <th>Q1估值</th>
-                <th>Q2速度</th>
-                <th>Q3感</th>
-                <th>Q4趣</th>
-                <th>Q5美</th>
-                <th>情緒(E1-E5)</th>
-                <th>功能(U1-U5)</th>
+                <th>Q2時間感</th>
+                <th>Q3趣味</th>
+                <th>情緒(Q4-Q7)</th>
+                <th>實用(Q8-Q10)</th>
+                <th>QoE總分</th>
                 <th>紀錄時間</th>
               </tr>
             </thead>

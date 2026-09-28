@@ -223,7 +223,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const currentId = document.getElementById('participant-id').value;
       const customId = prompt('請輸入指定的受試者代號 (例如 P002, P005)：', currentId);
       if (customId && customId.trim()) {
-        updateOnboardingParticipantId(customId.trim());
+        const candidate = customId.trim().toUpperCase();
+        if (isParticipantIdDuplicate(candidate)) {
+          alert(`⚠️ 受試者代號「${candidate}」已經存在於系統紀錄中！\n根據實驗規範，受試者號碼不能重複。請輸入其他未使用的代號。`);
+        }
+        updateOnboardingParticipantId(candidate);
       }
     });
   }
@@ -273,6 +277,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 7. Dashboard actions
   document.getElementById('btn-export-csv').addEventListener('click', exportCSV);
+  const btnExportLong = document.getElementById('btn-export-long-csv');
+  if (btnExportLong) {
+    btnExportLong.addEventListener('click', exportLongCSV);
+  }
   document.getElementById('btn-clear-db').addEventListener('click', clearDatabase);
   document.getElementById('btn-load-samples').addEventListener('click', loadSampleMockData);
 
@@ -356,6 +364,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // URL Hash navigation support (#dashboard, #researcher-dashboard)
+  function handleHashNavigation() {
+    const hash = window.location.hash;
+    if (hash === '#dashboard' || hash === '#researcher-dashboard') {
+      setResearcherMode(true);
+      showSection('dashboard');
+      renderDashboard();
+    } else if (hash === '#onboarding' || hash === '#setup') {
+      showSection('setup');
+    }
+  }
+  window.addEventListener('hashchange', handleHashNavigation);
+  handleHashNavigation();
+
   // Initialize DB view in Dashboard
   renderDashboard();
 });
@@ -364,6 +386,10 @@ document.addEventListener('DOMContentLoaded', () => {
 function startExperiment() {
   const pIdInput = document.getElementById('participant-id').value.trim();
   if (!pIdInput) return alert('受試者代號未生成，請重新整理網頁！');
+  
+  if (isParticipantIdDuplicate(pIdInput)) {
+    return alert(`⚠️ 受試者代號「${pIdInput}」已經存在於系統紀錄中！\n根據實驗規範，受試者號碼不能重複。請更換代號後再開始。`);
+  }
   
   state.participantId = pIdInput;
   state.gender = document.querySelector('input[name="demographic-gender"]:checked').value;
@@ -462,33 +488,30 @@ function transitionToSurvey() {
 function submitSurvey() {
   const form = document.getElementById('form-questionnaire');
   
-  // Collect all ratings
+  // Collect ratings for the 10 questions (Q1 to Q10)
   const q1Val = parseFloat(document.getElementById('q1-slider').value);
   const q2Val = parseInt(document.querySelector('input[name="q2"]:checked').value);
   const q3Val = parseInt(document.querySelector('input[name="q3"]:checked').value);
   const q4Val = parseInt(document.querySelector('input[name="q4"]:checked').value);
   const q5Val = parseInt(document.querySelector('input[name="q5"]:checked').value);
+  const q6Val = parseInt(document.querySelector('input[name="q6"]:checked').value);
+  const q7Val = parseInt(document.querySelector('input[name="q7"]:checked').value);
+  const q8Val = parseInt(document.querySelector('input[name="q8"]:checked').value);
+  const q9Val = parseInt(document.querySelector('input[name="q9"]:checked').value);
+  const q10Val = parseInt(document.querySelector('input[name="q10"]:checked').value);
   
-  const e1Val = parseInt(document.querySelector('input[name="e1"]:checked').value);
-  const e2Val = parseInt(document.querySelector('input[name="e2"]:checked').value);
-  const e3Val = parseInt(document.querySelector('input[name="e3"]:checked').value);
-  const e4Val = parseInt(document.querySelector('input[name="e4"]:checked').value);
-  const e5Val = parseInt(document.querySelector('input[name="e5"]:checked').value);
-  
-  const u1Val = parseInt(document.querySelector('input[name="u1"]:checked').value);
-  const u2Val = parseInt(document.querySelector('input[name="u2"]:checked').value);
-  const u3Val = parseInt(document.querySelector('input[name="u3"]:checked').value);
-  const u4Val = parseInt(document.querySelector('input[name="u4"]:checked').value);
-  const u5Val = parseInt(document.querySelector('input[name="u5"]:checked').value);
-  
-  // Calculate average QoE Score across the 14 semantic differential items (Q2 to Q15)
-  // Note: Q2 (1=Fast, 5=Slow) and Q3 (1=Short, 5=Long) are inverted poles,
-  // so for composite overall QoE ("higher is better"), reverse-code them as (6 - value)
+  // Calculate average QoE Score across the 9 semantic differential items (Q2 to Q10)
+  // Note: Q2 (1=Short, 5=Long) is inverted pole for QoE satisfaction ("higher is better"),
+  // reverse-code it as (6 - value)
   const q2Positive = 6 - q2Val;
-  const q3Positive = 6 - q3Val;
-  const qoeScoreList = [q2Positive, q3Positive, q4Val, q5Val, e1Val, e2Val, e3Val, e4Val, e5Val, u1Val, u2Val, u3Val, u4Val, u5Val];
+  const qoeScoreList = [q2Positive, q3Val, q4Val, q5Val, q6Val, q7Val, q8Val, q9Val, q10Val];
   const overallQoE = parseFloat((qoeScoreList.reduce((a,b) => a+b, 0) / qoeScoreList.length).toFixed(2));
   
+  // Emotional items composite average (Q4 - Q7)
+  const emoAvg = parseFloat(((q4Val + q5Val + q6Val + q7Val) / 4).toFixed(2));
+  // Utilitarian items composite average (Q8 - Q10)
+  const utiAvg = parseFloat(((q8Val + q9Val + q10Val) / 3).toFixed(2));
+
   // Slider has direct estimated seconds
   const q1Text = q1Val.toFixed(1) + " 秒";
   
@@ -511,27 +534,21 @@ function submitSurvey() {
     q1_estimateRaw: q1Val,
     q1_estimateText: q1Text,
     q1_estimateMidpoint: q1Val,
-    q2_speed: q2Val,
-    q3_time_passage: q3Val,
-    q4_interest: q4Val,
-    q5_aesthetics: q5Val,
-    e1: e1Val,
-    e2: e2Val,
-    e3: e3Val,
-    e4: e4Val,
-    e5: e5Val,
-    u1: u1Val,
-    u2: u2Val,
-    u3: u3Val,
-    u4: u4Val,
-    u5: u5Val,
+    q2_time_passage: q2Val,
+    q3_interest: q3Val,
+    q4_happy: q4Val,
+    q5_comfortable: q5Val,
+    q6_relaxed: q6Val,
+    q7_stimulated: q7Val,
+    q8_patient: q8Val,
+    q9_energetic: q9Val,
+    q10_powerful: q10Val,
+    emoAvg: emoAvg,
+    utiAvg: utiAvg,
     overallQoE: overallQoE
   };
   
   state.trialResults.push(trialResult);
-  
-  // Send data to Google Sheets automatically in the background
-  sendDataToGoogleSheets(trialResult);
   
   // Proceed to next trial or finish
   state.currentTrialIndex++;
@@ -540,6 +557,18 @@ function submitSurvey() {
   } else {
     // Session is complete! Write session results to browser storage
     saveSessionToDatabase();
+    
+    // Construct consolidated 1-row data (C01 to C09 in order) and sync to Excel (Google Sheets)
+    const wideData = buildParticipantWideData(
+      state.participantId,
+      state.trialResults,
+      state.gender,
+      state.age,
+      state.groupInfo ? state.groupInfo.groupCode : '',
+      new Date().toISOString()
+    );
+    sendParticipantWideRowToGoogleSheets(wideData);
+
     showThankYouScreen();
   }
 }
@@ -548,7 +577,7 @@ function submitSurvey() {
 function showThankYouScreen() {
   document.getElementById('summary-p-id').textContent = state.participantId;
   const groupText = state.groupInfo ? ` (順序組別: ${state.groupInfo.groupCode})` : '';
-  document.getElementById('summary-trial-count').textContent = `${state.trialResults.length} / ${state.trialList.length}${groupText}`;
+  document.getElementById('summary-trial-count').textContent = `${state.trialResults.length} / ${state.trialList.length}${groupText} (C01–C09 全數完成)`;
   showSection('thankyou');
 }
 
@@ -594,16 +623,27 @@ function renderDashboard() {
   document.getElementById('stat-total-trials').textContent = data.length;
   
   if (data.length > 0) {
-    const avgAesthetics = (data.reduce((sum, item) => sum + item.q5_aesthetics, 0) / data.length).toFixed(2);
-    // Utilitarian score is average of U1-U5
-    const sumUtilitarian = data.reduce((sum, item) => sum + (item.u1 + item.u2 + item.u3 + item.u4 + item.u5) / 5, 0);
+    const sumEmotional = data.reduce((sum, item) => {
+      const e = item.emoAvg !== undefined ? item.emoAvg : (item.q4_happy + item.q5_comfortable + item.q6_relaxed + item.q7_stimulated) / 4;
+      return sum + (isNaN(e) ? 0 : e);
+    }, 0);
+    const avgEmotional = (sumEmotional / data.length).toFixed(2);
+
+    const sumUtilitarian = data.reduce((sum, item) => {
+      const u = item.utiAvg !== undefined ? item.utiAvg : (item.q8_patient + item.q9_energetic + item.q10_powerful) / 3;
+      return sum + (isNaN(u) ? 0 : u);
+    }, 0);
     const avgUtilitarian = (sumUtilitarian / data.length).toFixed(2);
     
-    document.getElementById('stat-avg-aesthetics').textContent = avgAesthetics;
-    document.getElementById('stat-avg-utilitarian').textContent = avgUtilitarian;
+    const statEmo = document.getElementById('stat-avg-emotional');
+    if (statEmo) statEmo.textContent = avgEmotional;
+    const statUti = document.getElementById('stat-avg-utilitarian');
+    if (statUti) statUti.textContent = avgUtilitarian;
   } else {
-    document.getElementById('stat-avg-aesthetics').textContent = '-';
-    document.getElementById('stat-avg-utilitarian').textContent = '-';
+    const statEmo = document.getElementById('stat-avg-emotional');
+    if (statEmo) statEmo.textContent = '-';
+    const statUti = document.getElementById('stat-avg-utilitarian');
+    if (statUti) statUti.textContent = '-';
   }
   
   // 2. Render Charts
@@ -724,7 +764,7 @@ function renderRawDataTable(data) {
   if (data.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="15" class="text-center text-muted">目前尚無實驗紀錄。請前往「進行實驗」填寫問卷，或點擊「載入範例模擬數據」。</td>
+        <td colspan="14" class="text-center text-muted">目前尚無實驗紀錄。請前往「進行實驗」填寫問卷，或點擊「載入範例模擬數據」。</td>
       </tr>
     `;
     return;
@@ -738,10 +778,10 @@ function renderRawDataTable(data) {
     const date = new Date(item.timestamp);
     const dateStr = `${date.getMonth()+1}/${date.getDate()} ${date.getHours().toString().padStart(2,'0')}:${date.getMinutes().toString().padStart(2,'0')}`;
     
-    // Emotional items composite average
-    const emoAvg = ((item.e1 + item.e2 + item.e3 + item.e4 + item.e5) / 5).toFixed(1);
-    // Utilitarian items composite average
-    const utiAvg = ((item.u1 + item.u2 + item.u3 + item.u4 + item.u5) / 5).toFixed(1);
+    // Emotional items composite average (Q4 - Q7)
+    const emoAvg = item.emoAvg !== undefined ? item.emoAvg : (((item.q4_happy || 0) + (item.q5_comfortable || 0) + (item.q6_relaxed || 0) + (item.q7_stimulated || 0)) / 4).toFixed(1);
+    // Utilitarian items composite average (Q8 - Q10)
+    const utiAvg = item.utiAvg !== undefined ? item.utiAvg : (((item.q8_patient || 0) + (item.q9_energetic || 0) + (item.q10_powerful || 0)) / 3).toFixed(1);
 
     const animBadgeClass = item.animCode === 'A1' ? 'badge-anim-a1' :
                            item.animCode === 'A2' ? 'badge-anim-a2' : 'badge-anim-a3';
@@ -749,19 +789,18 @@ function renderRawDataTable(data) {
     html += `
       <tr>
         <td><strong>${escapeHtml(item.participantId)}</strong></td>
-        <td><span class="badge-cond" style="background: rgba(99,102,241,0.15); color: #c7d2fe;">${escapeHtml(item.orderGroup || '-')}</span></td>
+        <td><span class="badge-cond" style="background: rgba(99,102,241,0.15); color: #4338ca;">${escapeHtml(item.orderGroup || '-')}</span></td>
         <td>${item.trialOrder ? '#' + item.trialOrder : '-'}</td>
         <td><span class="badge-cond ${animBadgeClass}"><strong>${escapeHtml(item.conditionCode || '-')}</strong></span></td>
         <td><small class="text-muted">${escapeHtml((item.animCode || '') + (item.durCode || ''))}</small></td>
         <td>${escapeHtml(item.animName || (item.animation === 'loading' ? '載入圖示' : item.animation))}</td>
-        <td><span class="badge-e" style="background: rgba(99,102,241,0.1); border-color: rgba(99,102,241,0.2); color:#818cf8;">${item.durationText}</span></td>
-        <td title="原始選值: ${item.q1_estimateRaw}">${item.q1_estimateText}</td>
-        <td title="1(快)～5(慢)">${item.q2_speed}</td>
-        <td title="1(短)～5(長)">${item.q3_time_passage}</td>
-        <td>${item.q4_interest}</td>
-        <td>${item.q5_aesthetics}</td>
-        <td title="E1:${item.e1} E2:${item.e2} E3:${item.e3} E4:${item.e4} E5:${item.e5}">${emoAvg} <span class="text-muted">(Avg)</span></td>
-        <td title="U1:${item.u1} U2:${item.u2} U3:${item.u3} U4:${item.u4} U5:${item.u5}">${utiAvg} <span class="text-muted">(Avg)</span></td>
+        <td><span class="badge-e">${item.durationText}</span></td>
+        <td title="原始估算: ${item.q1_estimateRaw}">${item.q1_estimateText}</td>
+        <td title="1(短)～5(長)">${item.q2_time_passage}</td>
+        <td title="1(無趣)～5(有趣)">${item.q3_interest}</td>
+        <td title="Q4:${item.q4_happy} Q5:${item.q5_comfortable} Q6:${item.q6_relaxed} Q7:${item.q7_stimulated}">${emoAvg} <span class="text-muted">(Avg)</span></td>
+        <td title="Q8:${item.q8_patient} Q9:${item.q9_energetic} Q10:${item.q10_powerful}">${utiAvg} <span class="text-muted">(Avg)</span></td>
+        <td><strong>${item.overallQoE}</strong></td>
         <td><span class="text-muted">${dateStr}</span></td>
       </tr>
     `;
@@ -831,6 +870,7 @@ function clearDatabase() {
   
   localStorage.removeItem('qoe_study_data');
   renderDashboard();
+  updateOnboardingParticipantId();
   alert('數據庫已清空！');
 }
 
@@ -850,9 +890,9 @@ function loadSampleMockData() {
     const participantTrials = getTrialsForParticipant(subjectId);
     
     participantTrials.forEach(trial => {
-      let q1Raw, q2, q3, q4, q5;
-      let e1, e2, e3, e4, e5;
-      let u1, u2, u3, u4, u5;
+      let q1Raw, q2, q3; // Q1 estimate, Q2 passage of time, Q3 interest
+      let q4, q5, q6, q7; // Q4 happy, Q5 comfortable, Q6 relaxed, Q7 stimulated (Affective)
+      let q8, q9, q10; // Q8 patient, Q9 energetic, Q10 powerful (Utilitarian)
       
       const isPercent = trial.animation === '百分比';
       const isCoffee = trial.animation === '咖啡杯';
@@ -860,19 +900,15 @@ function loadSampleMockData() {
       
       const dur = trial.durationSec;
       
-      // 1. Time Judgment Q1 and Passage of Time Q3 (Psychological Modeling)
-      // Note: Q2 is 1=Fast, 5=Slow; Q3 is 1=Short, 5=Long!
+      // 1. Time Judgment Q1, Passage of Time Q2, Interest Q3
       if (isCoffee) {
-        // Coffee Cup: engaging, aesthetic. Time flies!
-        // Underestimates time
+        // Coffee Cup: engaging, aesthetic. Time flies! Underestimates time
         if (dur === 3) q1Raw = parseFloat((Math.random() * 0.8 + 1.2).toFixed(1)); // 1.2 - 2.0s
         else if (dur === 5) q1Raw = parseFloat((Math.random() * 1.2 + 3.0).toFixed(1)); // 3.0 - 4.2s
         else q1Raw = parseFloat((Math.random() * 2.0 + 6.5).toFixed(1)); // 6.5 - 8.5s
         
-        q2 = Math.floor(Math.random() * 2) + 1; // 1-2 (Feels Fast!)
-        q3 = Math.floor(Math.random() * 2) + 1; // 1-2 (Feels Short!)
-        q4 = Math.floor(Math.random() * 2) + 4; // 4-5 (Interesting)
-        q5 = Math.floor(Math.random() * 2) + 4; // 4-5 (High Aesthetics)
+        q2 = Math.floor(Math.random() * 2) + 1; // 1-2 (Feels Short!)
+        q3 = Math.floor(Math.random() * 2) + 4; // 4-5 (Interesting)
       } 
       else if (isPercent) {
         // Percentage: high information feedback, highly accurate.
@@ -880,76 +916,59 @@ function loadSampleMockData() {
         else if (dur === 5) q1Raw = parseFloat((Math.random() * 0.8 + 4.6).toFixed(1)); // 4.6 - 5.4s
         else q1Raw = parseFloat((Math.random() * 1.5 + 9.2).toFixed(1)); // 9.2 - 10.7s
         
-        q2 = Math.floor(Math.random() * 2) + 1; // 1-2 (Active ticking feels fast!)
-        q3 = Math.floor(Math.random() * 2) + 2; // 2-3 (Moderate passage)
-        q4 = Math.floor(Math.random() * 2) + 2; // 2-3 (Plain)
-        q5 = Math.floor(Math.random() * 2) + 2; // 2-3 (Plain)
+        q2 = Math.floor(Math.random() * 2) + 2; // 2-3 (Moderate passage)
+        q3 = Math.floor(Math.random() * 2) + 2; // 2-3 (Plain)
       } 
       else {
-        // Loading: boring spinner. 度日如年!
-        // Overestimates time
+        // Loading: boring spinner. 度日如年! Overestimates time
         if (dur === 3) q1Raw = parseFloat((Math.random() * 1.5 + 3.8).toFixed(1)); // 3.8 - 5.3s
         else if (dur === 5) q1Raw = parseFloat((Math.random() * 2.5 + 6.2).toFixed(1)); // 6.2 - 8.7s
         else q1Raw = parseFloat((Math.random() * 4.0 + 11.2).toFixed(1)); // 11.2 - 15.0s
         
-        q2 = Math.floor(Math.random() * 2) + 4; // 4-5 (Slow! Endless spinner)
-        q3 = Math.floor(Math.random() * 2) + 4; // 4-5 (Feels Long!)
-        q4 = Math.floor(Math.random() * 2) + 1; // 1-2 (Boring)
-        q5 = Math.floor(Math.random() * 2) + 1; // 1-2 (Low aesthetics)
+        q2 = Math.floor(Math.random() * 2) + 4; // 4-5 (Feels Long!)
+        q3 = Math.floor(Math.random() * 2) + 1; // 1-2 (Boring)
       }
       
-      // 2. Emotional SD (E1-E5)
+      // 2. Emotional SD (Q4 Happy, Q5 Comfortable, Q6 Relaxed, Q7 Stimulated)
       if (isCoffee) {
-        // Feels cozy and relaxed
-        e1 = Math.floor(Math.random() * 2) + 4; // Happy
-        e2 = Math.floor(Math.random() * 2) + 4; // Comfortable
-        e3 = Math.floor(Math.random() * 2) + 4; // At ease
-        e4 = Math.floor(Math.random() * 2) + 4; // Relaxed
-        e5 = Math.floor(Math.random() * 2) + 4; // Stimulated/Surprised
+        q4 = Math.floor(Math.random() * 2) + 4; // Happy
+        q5 = Math.floor(Math.random() * 2) + 4; // Comfortable
+        q6 = Math.floor(Math.random() * 2) + 4; // Relaxed
+        q7 = Math.floor(Math.random() * 2) + 4; // Stimulated/Surprised
       } else if (isPercent) {
-        // Neutral/Comfortable
-        e1 = Math.floor(Math.random() * 2) + 3;
-        e2 = Math.floor(Math.random() * 2) + 3;
-        e3 = Math.floor(Math.random() * 2) + 3;
-        e4 = Math.floor(Math.random() * 2) + 3;
-        e5 = Math.floor(Math.random() * 2) + 2; // Low stimulation
+        q4 = Math.floor(Math.random() * 2) + 3;
+        q5 = Math.floor(Math.random() * 2) + 3;
+        q6 = Math.floor(Math.random() * 2) + 3;
+        q7 = Math.floor(Math.random() * 2) + 2;
       } else {
-        // Boring spinner causes anxiety and tension, especially at 10s
         const anxietyFactor = dur === 10 ? 1 : 2;
-        e1 = Math.floor(Math.random() * 2) + 2;
-        e2 = Math.floor(Math.random() * 2) + 2;
-        e3 = Math.floor(Math.random() * 2) + anxietyFactor; 
-        e4 = Math.floor(Math.random() * 2) + anxietyFactor;
-        e5 = Math.floor(Math.random() * 2) + 1;
+        q4 = Math.floor(Math.random() * 2) + 2;
+        q5 = Math.floor(Math.random() * 2) + 2;
+        q6 = Math.floor(Math.random() * 2) + anxietyFactor;
+        q7 = Math.floor(Math.random() * 2) + 1;
       }
       
-      // 3. Functional SD (U1-U5)
+      // 3. Functional SD (Q8 Patient, Q9 Energetic, Q10 Powerful)
       if (isPercent) {
-        // Extremely high control confidence
-        u1 = Math.floor(Math.random() * 2) + 4; // Patient (knows when it will end)
-        u2 = Math.floor(Math.random() * 2) + 3;
-        u3 = Math.floor(Math.random() * 2) + 4; // Powerful (has information)
-        u4 = Math.floor(Math.random() * 2) + 3;
-        u5 = Math.floor(Math.random() * 2) + 4; // Confident
+        q8 = Math.floor(Math.random() * 2) + 4; // Patient
+        q9 = Math.floor(Math.random() * 2) + 3; // Energetic
+        q10 = Math.floor(Math.random() * 2) + 4; // Powerful
       } else if (isCoffee) {
-        u1 = Math.floor(Math.random() * 2) + 4; // Patient (distracted by design)
-        u2 = Math.floor(Math.random() * 2) + 4;
-        u3 = Math.floor(Math.random() * 2) + 3; // Low status feedback
-        u4 = Math.floor(Math.random() * 2) + 3; 
-        u5 = Math.floor(Math.random() * 2) + 3;
+        q8 = Math.floor(Math.random() * 2) + 4;
+        q9 = Math.floor(Math.random() * 2) + 4;
+        q10 = Math.floor(Math.random() * 2) + 3;
       } else {
-        // Spinner is annoying and helpless
         const annoyanceFactor = dur === 10 ? 1 : 2;
-        u1 = Math.floor(Math.random() * 2) + annoyanceFactor; // Impatient
-        u2 = Math.floor(Math.random() * 2) + 2;
-        u3 = Math.floor(Math.random() * 2) + 1; // Helpless (no clue when it stops)
-        u4 = Math.floor(Math.random() * 2) + annoyanceFactor; // Annoyed
-        u5 = Math.floor(Math.random() * 2) + 2; // Confused
+        q8 = Math.floor(Math.random() * 2) + annoyanceFactor;
+        q9 = Math.floor(Math.random() * 2) + 2;
+        q10 = Math.floor(Math.random() * 2) + 1;
       }
       
-      // Compute overall score with reversed Q2 & Q3
-      const list = [6 - q2, 6 - q3, q4, q5, e1, e2, e3, e4, e5, u1, u2, u3, u4, u5];
+      // Compute overall score with reversed Q2 (Short=5, Long=1)
+      const list = [6 - q2, q3, q4, q5, q6, q7, q8, q9, q10];
       const overall = parseFloat((list.reduce((a,b)=>a+b, 0)/list.length).toFixed(2));
+      const emoAvg = parseFloat(((q4 + q5 + q6 + q7) / 4).toFixed(2));
+      const utiAvg = parseFloat(((q8 + q9 + q10) / 3).toFixed(2));
       
       // Timestamp distributed over the last hour
       const timeOffset = Math.floor(Math.random() * 3600) * 1000;
@@ -973,12 +992,17 @@ function loadSampleMockData() {
         q1_estimateRaw: q1Raw,
         q1_estimateText: q1Raw.toFixed(1) + " 秒",
         q1_estimateMidpoint: q1Raw,
-        q2_speed: q2,
-        q3_time_passage: q3,
-        q4_interest: q4,
-        q5_aesthetics: q5,
-        e1, e2, e3, e4, e5,
-        u1, u2, u3, u4, u5,
+        q2_time_passage: q2,
+        q3_interest: q3,
+        q4_happy: q4,
+        q5_comfortable: q5,
+        q6_relaxed: q6,
+        q7_stimulated: q7,
+        q8_patient: q8,
+        q9_energetic: q9,
+        q10_powerful: q10,
+        emoAvg: emoAvg,
+        utiAvg: utiAvg,
         overallQoE: overall
       });
     });
@@ -987,31 +1011,139 @@ function loadSampleMockData() {
   // Write to localStorage
   localStorage.setItem('qoe_study_data', JSON.stringify(mockData));
   renderDashboard();
+  updateOnboardingParticipantId();
   alert('成功模擬載入 5 位受試者共 45 筆符合 9×9 拉丁方格之完整實驗數據！\n您可以立即在下方查看視覺化圖表、拉丁方格與數據表格。');
 }
 
-// Generate CSV string and trigger download in browser
+// Build Wide-format Data Object (1 row per participant, ordered C01 to C09)
+function buildParticipantWideData(participantId, trialResults, gender = null, age = null, orderGroup = null, timestamp = null) {
+  const codes = ['C01', 'C02', 'C03', 'C04', 'C05', 'C06', 'C07', 'C08', 'C09'];
+  const baseResult = (trialResults && trialResults.length > 0) ? trialResults[0] : {};
+  
+  const row = {
+    ParticipantID: participantId,
+    OrderGroup: orderGroup || baseResult.orderGroup || '-',
+    Gender: gender || baseResult.gender || '-',
+    AgeGroup: age || baseResult.age || '-',
+    Timestamp: timestamp || (trialResults && trialResults[trialResults.length - 1] ? trialResults[trialResults.length - 1].timestamp : new Date().toISOString())
+  };
+
+  codes.forEach(code => {
+    const t = trialResults ? trialResults.find(item => item.conditionCode === code) : null;
+    if (t) {
+      const eAvg = t.emoAvg !== undefined ? t.emoAvg : parseFloat(((t.q4_happy + t.q5_comfortable + t.q6_relaxed + t.q7_stimulated) / 4).toFixed(2));
+      const uAvg = t.utiAvg !== undefined ? t.utiAvg : parseFloat(((t.q8_patient + t.q9_energetic + t.q10_powerful) / 3).toFixed(2));
+      row[`${code}_Order`] = t.trialOrder;
+      row[`${code}_Q1_Sec`] = t.q1_estimateRaw;
+      row[`${code}_Q2_TimePassage`] = t.q2_time_passage;
+      row[`${code}_Q3_Interest`] = t.q3_interest;
+      row[`${code}_Q4_Happy`] = t.q4_happy;
+      row[`${code}_Q5_Comfortable`] = t.q5_comfortable;
+      row[`${code}_Q6_Relaxed`] = t.q6_relaxed;
+      row[`${code}_Q7_Stimulated`] = t.q7_stimulated;
+      row[`${code}_E_Avg`] = eAvg;
+      row[`${code}_Q8_Patient`] = t.q8_patient;
+      row[`${code}_Q9_Energetic`] = t.q9_energetic;
+      row[`${code}_Q10_Powerful`] = t.q10_powerful;
+      row[`${code}_U_Avg`] = uAvg;
+      row[`${code}_OverallQoE`] = t.overallQoE;
+    } else {
+      row[`${code}_Order`] = '-';
+      row[`${code}_Q1_Sec`] = '-';
+      row[`${code}_Q2_TimePassage`] = '-';
+      row[`${code}_Q3_Interest`] = '-';
+      row[`${code}_Q4_Happy`] = '-';
+      row[`${code}_Q5_Comfortable`] = '-';
+      row[`${code}_Q6_Relaxed`] = '-';
+      row[`${code}_Q7_Stimulated`] = '-';
+      row[`${code}_E_Avg`] = '-';
+      row[`${code}_Q8_Patient`] = '-';
+      row[`${code}_Q9_Energetic`] = '-';
+      row[`${code}_Q10_Powerful`] = '-';
+      row[`${code}_U_Avg`] = '-';
+      row[`${code}_OverallQoE`] = '-';
+    }
+  });
+
+  return row;
+}
+
+// Generate CSV string and trigger download in browser (Wide Format: 1 row per participant, C01 to C09)
 function exportCSV() {
   const data = JSON.parse(localStorage.getItem('qoe_study_data') || '[]');
   if (data.length === 0) {
     alert('無可用數據進行匯出，請先填寫問卷！');
     return;
   }
-  
-  // Define CSV Header
+
+  // Group trials by participantId preserving insertion order
+  const participantsMap = new Map();
+  data.forEach(item => {
+    if (!participantsMap.has(item.participantId)) {
+      participantsMap.set(item.participantId, []);
+    }
+    participantsMap.get(item.participantId).push(item);
+  });
+
+  const wideRows = [];
+  participantsMap.forEach((trials, pId) => {
+    wideRows.push(buildParticipantWideData(pId, trials));
+  });
+
+  if (wideRows.length === 0) {
+    alert('無可用數據進行匯出！');
+    return;
+  }
+
+  const headers = Object.keys(wideRows[0]);
+  let csvContent = headers.join(',') + '\r\n';
+
+  wideRows.forEach(row => {
+    const values = headers.map(h => escapeCsvCell(row[h]));
+    csvContent += values.join(',') + '\r\n';
+  });
+
+  // Add Unicode BOM (\ufeff) to force Excel to read UTF-8 correctly
+  const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+
+  const now = new Date();
+  const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
+  const timeStr = now.toTimeString().slice(0, 5).replace(/:/g, '');
+
+  link.setAttribute('href', url);
+  link.setAttribute('download', `QoE_Study_Wide_C01_C09_${dateStr}_${timeStr}.csv`);
+  link.style.visibility = 'hidden';
+
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+// Export detailed trials as CSV (Long format: 1 row per trial)
+function exportLongCSV() {
+  const data = JSON.parse(localStorage.getItem('qoe_study_data') || '[]');
+  if (data.length === 0) {
+    alert('無可用數據進行匯出，請先填寫問卷！');
+    return;
+  }
+
   const headers = [
     'ParticipantID', 'OrderGroup', 'TrialOrder', 'ConditionCode', 'AnimCode', 'DurCode',
     'Gender', 'AgeGroup', 'Timestamp', 'Animation', 'ActualDurationText', 'ActualDurationSec',
     'Q1_EstimateRaw', 'Q1_EstimateText', 'Q1_EstimateMidpointSec',
-    'Q2_Speed', 'Q3_TimePassage', 'Q4_Interest', 'Q5_Aesthetics',
-    'E1_Happy', 'E2_Comfortable', 'E3_AtEase', 'E4_Relaxed', 'E5_Stimulated',
-    'U1_Patient', 'U2_Energetic', 'U3_Powerful', 'U4_Excited', 'U5_Confident',
+    'Q2_TimePassage', 'Q3_Interest',
+    'Q4_Happy', 'Q5_Comfortable', 'Q6_Relaxed', 'Q7_Stimulated', 'Emotional_Avg',
+    'Q8_Patient', 'Q9_Energetic', 'Q10_Powerful', 'Utilitarian_Avg',
     'OverallQoE'
   ];
-  
+
   let csvContent = headers.join(',') + '\r\n';
-  
+
   data.forEach(item => {
+    const eAvg = item.emoAvg !== undefined ? item.emoAvg : (((item.q4_happy || 0) + (item.q5_comfortable || 0) + (item.q6_relaxed || 0) + (item.q7_stimulated || 0)) / 4).toFixed(2);
+    const uAvg = item.utiAvg !== undefined ? item.utiAvg : (((item.q8_patient || 0) + (item.q9_energetic || 0) + (item.q10_powerful || 0)) / 3).toFixed(2);
     const row = [
       escapeCsvCell(item.participantId),
       escapeCsvCell(item.orderGroup || '-'),
@@ -1028,39 +1160,34 @@ function exportCSV() {
       item.q1_estimateRaw,
       escapeCsvCell(item.q1_estimateText),
       item.q1_estimateMidpoint,
-      item.q2_speed,
-      item.q3_time_passage,
-      item.q4_interest,
-      item.q5_aesthetics,
-      item.e1,
-      item.e2,
-      item.e3,
-      item.e4,
-      item.e5,
-      item.u1,
-      item.u2,
-      item.u3,
-      item.u4,
-      item.u5,
+      item.q2_time_passage,
+      item.q3_interest,
+      item.q4_happy,
+      item.q5_comfortable,
+      item.q6_relaxed,
+      item.q7_stimulated,
+      eAvg,
+      item.q8_patient,
+      item.q9_energetic,
+      item.q10_powerful,
+      uAvg,
       item.overallQoE
     ];
     csvContent += row.join(',') + '\r\n';
   });
-  
-  // Add Unicode BOM (\ufeff) to force Excel to read UTF-8 correctly
+
   const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
-  
-  // File naming convention: QoE_Study_Data_YYYYMMDD_HHMM.csv
+
   const now = new Date();
   const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
   const timeStr = now.toTimeString().slice(0, 5).replace(/:/g, '');
-  
+
   link.setAttribute('href', url);
-  link.setAttribute('download', `QoE_Study_Data_${dateStr}_${timeStr}.csv`);
+  link.setAttribute('download', `QoE_Study_Trials_Detail_${dateStr}_${timeStr}.csv`);
   link.style.visibility = 'hidden';
-  
+
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -1076,120 +1203,51 @@ function escapeCsvCell(val) {
   return str;
 }
 
-// Export current session data as CSV for participants to email
+// Export current session data as CSV for participant (1 row per participant, ordered C01 to C09)
 function exportSessionCSV() {
   const data = state.trialResults;
-  if (data.length === 0) {
+  if (!data || data.length === 0) {
     alert('無可用數據進行匯出！');
     return;
   }
-  
-  // Define CSV Header
-  const headers = [
-    'ParticipantID', 'OrderGroup', 'TrialOrder', 'ConditionCode', 'AnimCode', 'DurCode',
-    'Gender', 'AgeGroup', 'Timestamp', 'Animation', 'ActualDurationText', 'ActualDurationSec',
-    'Q1_EstimateRaw', 'Q1_EstimateText', 'Q1_EstimateMidpointSec',
-    'Q2_Speed', 'Q3_TimePassage', 'Q4_Interest', 'Q5_Aesthetics',
-    'E1_Happy', 'E2_Comfortable', 'E3_AtEase', 'E4_Relaxed', 'E5_Stimulated',
-    'U1_Patient', 'U2_Energetic', 'U3_Powerful', 'U4_Excited', 'U5_Confident',
-    'OverallQoE'
-  ];
-  
-  let csvContent = headers.join(',') + '\r\n';
-  
-  data.forEach(item => {
-    const row = [
-      escapeCsvCell(item.participantId),
-      escapeCsvCell(item.orderGroup || '-'),
-      item.trialOrder || '-',
-      escapeCsvCell(item.conditionCode || '-'),
-      escapeCsvCell(item.animCode || '-'),
-      escapeCsvCell(item.durCode || '-'),
-      escapeCsvCell(item.gender || '-'),
-      escapeCsvCell(item.age || '-'),
-      item.timestamp,
-      escapeCsvCell(item.animation),
-      escapeCsvCell(item.durationText),
-      item.durationSec,
-      item.q1_estimateRaw,
-      escapeCsvCell(item.q1_estimateText),
-      item.q1_estimateMidpoint,
-      item.q2_speed,
-      item.q3_time_passage,
-      item.q4_interest,
-      item.q5_aesthetics,
-      item.e1,
-      item.e2,
-      item.e3,
-      item.e4,
-      item.e5,
-      item.u1,
-      item.u2,
-      item.u3,
-      item.u4,
-      item.u5,
-      item.overallQoE
-    ];
-    csvContent += row.join(',') + '\r\n';
-  });
-  
+
+  const wideData = buildParticipantWideData(
+    state.participantId,
+    data,
+    state.gender,
+    state.age,
+    state.groupInfo ? state.groupInfo.groupCode : '',
+    new Date().toISOString()
+  );
+
+  const headers = Object.keys(wideData);
+  const rowValues = headers.map(key => escapeCsvCell(wideData[key]));
+
+  let csvContent = headers.join(',') + '\r\n' + rowValues.join(',') + '\r\n';
+
+  // Add Unicode BOM (\ufeff) to force Excel to read UTF-8 correctly
   const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
-  
+
   const now = new Date();
   const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
   const timeStr = now.toTimeString().slice(0, 5).replace(/:/g, '');
-  
   const safePId = escapeCsvCell(state.participantId).replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_');
-  
+
   link.setAttribute('href', url);
-  link.setAttribute('download', `${safePId}_QoE_Data_${dateStr}_${timeStr}.csv`);
+  link.setAttribute('download', `${safePId}_QoE_Results_C01_C09_${dateStr}_${timeStr}.csv`);
   link.style.visibility = 'hidden';
-  
+
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  alert('您的答題紀錄已匯出成功！\n請將下載的 CSV 檔案傳送給研究者以完成實驗。謝謝您的參與！');
+  alert('已成功下載您的實驗結果 (Excel / CSV)！\n數據結果已自動上傳完成，感謝您填寫實驗問卷。');
 }
 
-// Automatically send individual trial data to Google Sheets script
-function sendDataToGoogleSheets(result) {
+// Automatically send consolidated wide-format participant data (1 row per participant, C01 to C09) to Google Sheets
+function sendParticipantWideRowToGoogleSheets(wideData) {
   if (!GOOGLE_SCRIPT_URL) return;
-  
-  // Flattening or mapping key-values for easier sheet consumption
-  const postData = {
-    "ParticipantID": result.participantId,
-    "OrderGroup": result.orderGroup || '-',
-    "TrialOrder": result.trialOrder || '-',
-    "ConditionCode": result.conditionCode || '-',
-    "AnimCode": result.animCode || '-',
-    "DurCode": result.durCode || '-',
-    "Gender": result.gender || '-',
-    "AgeGroup": result.age || '-',
-    "Timestamp": result.timestamp,
-    "Animation": result.animation,
-    "ActualDurationText": result.durationText,
-    "ActualDurationSec": result.durationSec,
-    "Q1_EstimateRaw": result.q1_estimateRaw,
-    "Q1_EstimateText": result.q1_estimateText,
-    "Q1_EstimateMidpoint": result.q1_estimateMidpoint,
-    "Q2_Speed": result.q2_speed,
-    "Q3_TimePassage": result.q3_time_passage,
-    "Q4_Interest": result.q4_interest,
-    "Q5_Aesthetics": result.q5_aesthetics,
-    "E1_Sad_Happy": result.e1,
-    "E2_Uncomfortable_Comfortable": result.e2,
-    "E3_Tense_AtEase": result.e3,
-    "E4_Anxious_Relaxed": result.e4,
-    "E5_Unimpressed_Stimulated": result.e5,
-    "U1_Impatient_Patient": result.u1,
-    "U2_Tired_Energetic": result.u2,
-    "U3_Helpless_Powerful": result.u3,
-    "U4_Annoyed_Excited": result.u4,
-    "U5_Confused_Confident": result.u5,
-    "OverallQoE": result.overallQoE
-  };
 
   fetch(GOOGLE_SCRIPT_URL, {
     method: 'POST',
@@ -1197,35 +1255,51 @@ function sendDataToGoogleSheets(result) {
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify(postData)
+    body: JSON.stringify(wideData)
   })
   .then(() => {
-    console.log("Response recorded to Google Sheets successfully.");
+    console.log("Consolidated participant data (1 row, C01-C09) synced to Google Sheets successfully.");
   })
   .catch(err => {
-    console.error("Error sending response to Google Sheets:", err);
+    console.error("Error syncing consolidated response to Google Sheets:", err);
   });
 }
 
-// Automatically generate the next Participant ID based on local storage data
+// Check if a Participant ID already exists in stored data
+function isParticipantIdDuplicate(participantId) {
+  if (!participantId) return false;
+  try {
+    const data = JSON.parse(localStorage.getItem('qoe_study_data') || '[]');
+    const target = String(participantId).trim().toUpperCase();
+    return data.some(item => String(item.participantId).trim().toUpperCase() === target);
+  } catch (e) {
+    console.error("Error checking duplicate participant ID:", e);
+    return false;
+  }
+}
+
+// Automatically generate the next unique Participant ID that does not exist in local storage data
 function getNextParticipantId() {
   try {
     const data = JSON.parse(localStorage.getItem('qoe_study_data') || '[]');
-    const existingIds = new Set(data.map(item => item.participantId));
-    
+    const existingIds = new Set(data.map(item => String(item.participantId).trim().toUpperCase()));
+
     let maxNum = 0;
     existingIds.forEach(id => {
-      if (typeof id === 'string') {
-        const match = id.match(/^P(\d+)$/);
-        if (match) {
-          const num = parseInt(match[1], 10);
-          if (num > maxNum) maxNum = num;
-        }
+      const match = id.match(/^P(\d+)$/);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num > maxNum) maxNum = num;
       }
     });
-    
-    const nextNum = maxNum + 1;
-    return 'P' + String(nextNum).padStart(3, '0');
+
+    let nextNum = maxNum + 1;
+    let candidate = 'P' + String(nextNum).padStart(3, '0');
+    while (existingIds.has(candidate)) {
+      nextNum++;
+      candidate = 'P' + String(nextNum).padStart(3, '0');
+    }
+    return candidate;
   } catch (e) {
     console.error("Error generating next participant ID:", e);
     return 'P001';
@@ -1240,23 +1314,44 @@ function updateOnboardingParticipantId(overrideId = null) {
     const urlParams = new URLSearchParams(window.location.search);
     const paramId = urlParams.get('pid') || urlParams.get('p') || urlParams.get('id');
     if (paramId) {
-      if (!paramId.startsWith('P')) {
+      if (!paramId.toUpperCase().startsWith('P')) {
         const num = parseInt(paramId, 10);
         targetId = !isNaN(num) ? 'P' + String(num).padStart(3, '0') : paramId;
       } else {
-        targetId = paramId;
+        targetId = paramId.toUpperCase();
       }
     }
   }
 
-  const nextId = targetId || getNextParticipantId();
+  const nextId = (targetId ? targetId.trim().toUpperCase() : null) || getNextParticipantId();
   const displayEl = document.getElementById('display-participant-id');
   const displayGroupEl = document.getElementById('display-order-group');
   const inputEl = document.getElementById('participant-id');
-  
+  const statusEl = document.getElementById('id-status-msg');
+  const submitBtn = document.querySelector('#form-setup button[type="submit"]');
+
+  const isDuplicate = isParticipantIdDuplicate(nextId);
+
   if (displayEl && inputEl) {
     displayEl.textContent = nextId;
     inputEl.value = nextId;
+    displayEl.style.color = isDuplicate ? '#dc2626' : '#047857';
+  }
+
+  if (statusEl) {
+    if (isDuplicate) {
+      statusEl.textContent = '⚠️ 此受試者號碼已存在，不可重複！請點擊下方按鈕更換。';
+      statusEl.style.color = '#dc2626';
+    } else {
+      statusEl.textContent = '✅ 受試者代號可用（未重複）';
+      statusEl.style.color = '#059669';
+    }
+  }
+
+  if (submitBtn) {
+    submitBtn.disabled = isDuplicate;
+    submitBtn.style.opacity = isDuplicate ? '0.5' : '1';
+    submitBtn.style.cursor = isDuplicate ? 'not-allowed' : 'pointer';
   }
 
   if (displayGroupEl) {
