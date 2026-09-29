@@ -35,23 +35,69 @@ function getFullHeaders() {
   return headers;
 }
 
-// 1. 處理 GET 請求 (提供狀態檢查)
+// 1. 處理 GET 請求 (提供狀態檢查與跨裝置自動平衡推薦組別)
 function doGet(e) {
   try {
     var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
     var lastRow = sheet.getLastRow();
-    var rowCount = lastRow > 1 ? lastRow - 1 : 0;
-    return ContentService.createTextOutput(JSON.stringify({
+    
+    // 計算 S01～S09 各組已填答人數 (以第 1 欄 OrderGroup 為準)
+    var groupCounts = {
+      'S01': 0, 'S02': 0, 'S03': 0,
+      'S04': 0, 'S05': 0, 'S06': 0,
+      'S07': 0, 'S08': 0, 'S09': 0
+    };
+
+    if (lastRow > 1) {
+      var values = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+      for (var i = 0; i < values.length; i++) {
+        var g = String(values[i][0]).trim().toUpperCase();
+        if (groupCounts[g] !== undefined) {
+          groupCounts[g]++;
+        }
+      }
+    }
+
+    // 找出目前在試算表中「人數最少」的組別 (若有同分，依 S01 到 S09 順序輪替補齊)
+    var minCount = Infinity;
+    var recommendedGroup = 'S01';
+    var groups = ['S01', 'S02', 'S03', 'S04', 'S05', 'S06', 'S07', 'S08', 'S09'];
+    for (var k = 0; k < groups.length; k++) {
+      var grp = groups[k];
+      if (groupCounts[grp] < minCount) {
+        minCount = groupCounts[grp];
+        recommendedGroup = grp;
+      }
+    }
+
+    var resultData = {
       result: "success",
       status: "active",
-      message: "Google Sheets 同步服務運作正常！模式：不記名一人一列 (C01～C09，共 130 欄)。",
-      rowCount: rowCount
-    })).setMimeType(ContentService.MimeType.JSON);
+      message: "Google Sheets 同步服務運作正常！跨裝置智慧平衡推薦組別：" + recommendedGroup,
+      totalParticipants: lastRow > 1 ? lastRow - 1 : 0,
+      groupCounts: groupCounts,
+      recommendedGroup: recommendedGroup
+    };
+
+    var output = JSON.stringify(resultData);
+    var callback = e && e.parameter && e.parameter.callback;
+    if (callback) {
+      return ContentService.createTextOutput(callback + '(' + output + ')')
+        .setMimeType(ContentService.MimeType.JAVASCRIPT);
+    }
+
+    return ContentService.createTextOutput(output)
+      .setMimeType(ContentService.MimeType.JSON);
+
   } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({
-      result: "error",
-      message: err.toString()
-    })).setMimeType(ContentService.MimeType.JSON);
+    var errObj = { result: "error", message: err.toString() };
+    var callback = e && e.parameter && e.parameter.callback;
+    if (callback) {
+      return ContentService.createTextOutput(callback + '(' + JSON.stringify(errObj) + ')')
+        .setMimeType(ContentService.MimeType.JAVASCRIPT);
+    }
+    return ContentService.createTextOutput(JSON.stringify(errObj))
+      .setMimeType(ContentService.MimeType.JSON);
   }
 }
 

@@ -172,18 +172,149 @@ function getParticipantNumber(participantId) {
   return match ? parseInt(match[0], 10) : 1;
 }
 
-// Calculate Latin Square order group for the current session (rotating S01-S09)
+// Query Google Sheets backend to determine which Latin Square group has the least responses across all devices
+function fetchCloudGroupBalance() {
+  const url = getGoogleScriptUrl();
+  if (!url) return;
+
+  const callbackName = 'onCloudGroupBalance_' + Date.now();
+  window[callbackName] = function(data) {
+    try {
+      if (data && data.result === 'success' && data.recommendedGroup) {
+        state.cloudRecommendedGroup = data.recommendedGroup;
+        state.cloudGroupCounts = data.groupCounts;
+        localStorage.setItem('qoe_cached_cloud_group', data.recommendedGroup);
+        if (data.groupCounts) {
+          localStorage.setItem('qoe_cached_cloud_counts', JSON.stringify(data.groupCounts));
+        }
+        console.log("☁️ 已獲取 Google Sheets 雲端平衡組別。當前人數最少推薦組別:", data.recommendedGroup, data.groupCounts);
+        if (typeof renderLatinSquareTable === 'function') {
+          renderLatinSquareTable();
+        }
+      }
+    } catch (e) {
+      console.warn("Error handling cloud balance response:", e);
+    } finally {
+      delete window[callbackName];
+      const scriptTag = document.getElementById(callbackName);
+      if (scriptTag && scriptTag.parentNode) scriptTag.parentNode.removeChild(scriptTag);
+    }
+  };
+
+  try {
+    const script = document.createElement('script');
+    script.id = callbackName;
+    const separator = url.includes('?') ? '&' : '?';
+    script.src = `${url}${separator}callback=${callbackName}&_t=${Date.now()}`;
+    script.onerror = function() {
+      delete window[callbackName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+    };
+    document.head.appendChild(script);
+  } catch (e) {
+    console.warn("JSONP request setup failed:", e);
+  }
+
+  // Also try standard fetch as secondary channel
+  try {
+    const separator = url.includes('?') ? '&' : '?';
+    fetch(`${url}${separator}_t=${Date.now()}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.result === 'success' && data.recommendedGroup) {
+          state.cloudRecommendedGroup = data.recommendedGroup;
+          state.cloudGroupCounts = data.groupCounts;
+          localStorage.setItem('qoe_cached_cloud_group', data.recommendedGroup);
+          if (data.groupCounts) {
+            localStorage.setItem('qoe_cached_cloud_counts', JSON.stringify(data.groupCounts));
+          }
+          if (typeof renderLatinSquareTable === 'function') {
+            renderLatinSquareTable();
+          }
+        }
+      })
+      .catch(() => {});
+  } catch (e) {}
+}
+
+// Find group with least participants in local data (or time-based rotation if completely fresh)
+function getLeastFilledGroupFromLocalData() {
+  const data = JSON.parse(localStorage.getItem('qoe_study_data') || '[]');
+  const counts = { S01: 0, S02: 0, S03: 0, S04: 0, S05: 0, S06: 0, S07: 0, S08: 0, S09: 0 };
+  
+  // Count local completed sessions
+  const sessions = groupTrialsBySession(data);
+  sessions.forEach(trials => {
+    const og = (trials && trials[0] && trials[0].orderGroup) || '';
+    if (counts[og] !== undefined) counts[og]++;
+  });
+
+  // Factor in cached cloud counts if available
+  try {
+    const cachedCloud = JSON.parse(localStorage.getItem('qoe_cached_cloud_counts') || '{}');
+    Object.keys(cachedCloud).forEach(grp => {
+      if (counts[grp] !== undefined) {
+        counts[grp] = Math.max(counts[grp], cachedCloud[grp] || 0);
+      }
+    });
+  } catch (e) {}
+
+  let minCount = Infinity;
+  let leastGroup = 'S01';
+  const groups = ['S01', 'S02', 'S03', 'S04', 'S05', 'S06', 'S07', 'S08', 'S09'];
+  groups.forEach(g => {
+    if (counts[g] < minCount) {
+      minCount = counts[g];
+      leastGroup = g;
+    }
+  });
+
+  // If this device is completely fresh (all 0), use dynamic time-based rotation so different devices opening NEVER all get S01!
+  if (minCount === 0 && (!data || data.length === 0)) {
+    const timeBasedNum = (Math.floor(Date.now() / 1000) % 9) + 1;
+    leastGroup = `S0${timeBasedNum}`.slice(-3);
+  }
+
+  const num = parseInt(leastGroup.replace(/\D/g, ''), 10) || 1;
+  return {
+    rowIndex: num - 1,
+    groupNumber: num,
+    groupCode: leastGroup
+  };
+}
+
+// Calculate Latin Square order group for the current session (Least-filled / balanced S01-S09)
 function getNextSessionGroup() {
   try {
-    let counter = parseInt(localStorage.getItem('qoe_session_counter') || '0', 10);
-    const rowIndex = counter % 9;
-    const groupNum = rowIndex + 1;
-    const groupCode = `S0${groupNum}`.slice(-3);
-    return {
-      rowIndex,
-      groupNumber: groupNum,
-      groupCode
-    };
+    // 1. URL parameter override: ?g=1..9, ?group=S01..S09 (highest priority for researcher direct control)
+    const urlParams = new URLSearchParams(window.location.search);
+    const gParam = urlParams.get('g') || urlParams.get('group') || urlParams.get('s');
+    if (gParam) {
+      const match = gParam.match(/\d+/);
+      if (match) {
+        const num = ((parseInt(match[0], 10) - 1) % 9 + 9) % 9 + 1;
+        return {
+          rowIndex: num - 1,
+          groupNumber: num,
+          groupCode: `S0${num}`.slice(-3)
+        };
+      }
+    }
+
+    // 2. Google Sheets Cloud balance: recommend the least-filled group across all devices
+    const cloudGrp = state.cloudRecommendedGroup || localStorage.getItem('qoe_cached_cloud_group');
+    if (cloudGrp && /^S0[1-9]$/i.test(cloudGrp.trim())) {
+      const num = parseInt(cloudGrp.replace(/\D/g, ''), 10);
+      return {
+        rowIndex: num - 1,
+        groupNumber: num,
+        groupCode: `S0${num}`.slice(-3)
+      };
+    }
+
+    // 3. Fallback: Local database least-filled group or dynamic time rotation
+    return getLeastFilledGroupFromLocalData();
+
   } catch (e) {
     const r = Math.floor(Math.random() * 9) + 1;
     return { rowIndex: r - 1, groupNumber: r, groupCode: `S0${r}`.slice(-3) };
@@ -250,6 +381,9 @@ function showSection(targetSectionId) {
 
 // Setup Event Listeners on Load
 document.addEventListener('DOMContentLoaded', () => {
+  // Query Google Sheets backend to determine which Latin Square group has the least responses across all devices
+  fetchCloudGroupBalance();
+
   // 1. Navigation Button Toggles
   navBtns.experiment.addEventListener('click', () => {
     showSection(state.viewState);
@@ -459,6 +593,10 @@ function startExperiment() {
   state.trialList = getTrialsForGroup(state.groupInfo);
   state.currentTrialIndex = 0;
   
+  // Clear cached cloud recommendation so immediate next test continues rotating
+  state.cloudRecommendedGroup = null;
+  localStorage.removeItem('qoe_cached_cloud_group');
+
   // Launch the first trial
   runTrial();
 }
@@ -628,7 +766,9 @@ function submitSurvey() {
       state.groupInfo ? state.groupInfo.groupCode : '',
       new Date().toISOString()
     );
-    sendParticipantWideRowToGoogleSheets(wideData);
+    sendParticipantWideRowToGoogleSheets(wideData).then(() => {
+      setTimeout(fetchCloudGroupBalance, 1500);
+    });
 
     showThankYouScreen();
   }
@@ -877,21 +1017,34 @@ function renderLatinSquareTable() {
   if (!tbody) return;
 
   const square = getOrInitLatinSquare();
+  const data = JSON.parse(localStorage.getItem('qoe_study_data') || '[]');
+  
+  // Calculate completed participants per group
+  const groupCounts = {};
+  for (let i = 1; i <= 9; i++) groupCounts[`S0${i}`.slice(-3)] = 0;
+  const sessions = groupTrialsBySession(data);
+  sessions.forEach(trials => {
+    const og = (trials && trials[0] && trials[0].orderGroup) || '';
+    if (groupCounts[og] !== undefined) {
+      groupCounts[og]++;
+    }
+  });
+
   let html = '';
 
   square.forEach((row, rowIndex) => {
     const groupNum = rowIndex + 1;
     const groupCode = `S0${groupNum}`.slice(-3);
-    
-    // Calculate sample participant IDs that fall into this row (e.g. S01 -> P001, P010, P019...)
-    const p1 = 'P' + String(groupNum).padStart(3, '0');
-    const p2 = 'P' + String(groupNum + 9).padStart(3, '0');
+    const count = groupCounts[groupCode] || 0;
 
     html += `
       <tr>
         <td class="ls-group-col">
           <strong>第 ${groupNum} 組 (${groupCode})</strong>
-          <br><small class="text-muted">${p1}, ${p2}...</small>
+          <br>
+          <span style="display: inline-block; margin-top: 4px; padding: 2px 7px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; background: ${count > 0 ? '#ecfdf5' : '#f8fafc'}; color: ${count > 0 ? '#059669' : '#94a3b8'}; border: 1px solid ${count > 0 ? '#a7f3d0' : '#e2e8f0'};">
+            ${count > 0 ? `✅ 已填答: ${count} 人` : '⏳ 尚無填答'}
+          </span>
         </td>
     `;
 
