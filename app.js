@@ -15,8 +15,29 @@ const TRIALS = Object.values(CONDITIONS);
 
 // Google Sheets Web App Endpoint for automated data collection
 const DEFAULT_GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwMcJ8kttJobodGInq4jrTJUivcORMAz2Rw3L_HzjkA73mRLaPqRnLFv7zogGB-FKUM/exec";
+
+function normalizeGoogleScriptUrl(input) {
+  if (!input) return '';
+  let str = input.trim();
+  // Strip common prefixes like "部署作業id: " or "部署作業id"
+  str = str.replace(/^(部署作業\s*id|部署作業|deployment\s*id)[\s:=]*/i, '').trim();
+  
+  if (str.startsWith('https://script.google.com/')) {
+    if (!str.endsWith('/exec')) {
+      str = str.replace(/\/+$/, '') + '/exec';
+    }
+    return str;
+  }
+  // If user passed raw deployment ID (e.g. AKfycbw...)
+  if (/^[a-zA-Z0-9_-]{25,}$/.test(str)) {
+    return `https://script.google.com/macros/s/${str}/exec`;
+  }
+  return str;
+}
+
 function getGoogleScriptUrl() {
-  return localStorage.getItem('qoe_google_script_url') || DEFAULT_GOOGLE_SCRIPT_URL;
+  const saved = localStorage.getItem('qoe_google_script_url');
+  return normalizeGoogleScriptUrl(saved) || DEFAULT_GOOGLE_SCRIPT_URL;
 }
 const GOOGLE_SCRIPT_URL = getGoogleScriptUrl();
 
@@ -151,7 +172,25 @@ function getParticipantNumber(participantId) {
   return match ? parseInt(match[0], 10) : 1;
 }
 
-// Calculate Latin Square order group from Participant ID
+// Calculate Latin Square order group for the current session (rotating S01-S09)
+function getNextSessionGroup() {
+  try {
+    let counter = parseInt(localStorage.getItem('qoe_session_counter') || '0', 10);
+    const rowIndex = counter % 9;
+    const groupNum = rowIndex + 1;
+    const groupCode = `S0${groupNum}`.slice(-3);
+    return {
+      rowIndex,
+      groupNumber: groupNum,
+      groupCode
+    };
+  } catch (e) {
+    const r = Math.floor(Math.random() * 9) + 1;
+    return { rowIndex: r - 1, groupNumber: r, groupCode: `S0${r}`.slice(-3) };
+  }
+}
+
+// Calculate Latin Square order group from Participant ID (if provided)
 function getOrderGroupInfo(participantId) {
   const pNum = getParticipantNumber(participantId);
   const rowIndex = ((pNum - 1) % 9 + 9) % 9; // 0 to 8
@@ -164,10 +203,9 @@ function getOrderGroupInfo(participantId) {
   };
 }
 
-// Generate ordered trial sequence for participant based on their Latin Square row
-function getTrialsForParticipant(participantId) {
+// Generate ordered trial sequence for session based on Latin Square row
+function getTrialsForGroup(groupInfo) {
   const square = getOrInitLatinSquare();
-  const groupInfo = getOrderGroupInfo(participantId);
   const conditionCodes = square[groupInfo.rowIndex]; // Array of 9 codes: ['C05', 'C01', ...]
 
   return conditionCodes.map((cCode, idx) => {
@@ -179,6 +217,11 @@ function getTrialsForParticipant(participantId) {
       trialOrder: idx + 1 // 1 to 9
     };
   });
+}
+
+function getTrialsForParticipant(participantId) {
+  const groupInfo = getOrderGroupInfo(participantId);
+  return getTrialsForGroup(groupInfo);
 }
 
 // Switch between views (Setup, Player, Questionnaire, Thank You, Dashboard)
@@ -398,22 +441,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Start the Experiment Session
 function startExperiment() {
-  const pIdInput = document.getElementById('participant-id').value.trim();
-  if (!pIdInput) return alert('受試者代號未生成，請重新整理網頁！');
-  
-  if (isParticipantIdDuplicate(pIdInput)) {
-    return alert(`⚠️ 受試者代號「${pIdInput}」已經存在於系統紀錄中！\n根據實驗規範，受試者號碼不能重複。請更換代號後再開始。`);
+  const genderEl = document.querySelector('input[name="demographic-gender"]:checked');
+  const ageEl = document.querySelector('input[name="demographic-age"]:checked');
+  if (!genderEl || !ageEl) {
+    return alert('請先填寫基本資料（生理性別與年齡級距）！');
   }
   
-  state.participantId = pIdInput;
-  state.gender = document.querySelector('input[name="demographic-gender"]:checked').value;
-  state.age = document.querySelector('input[name="demographic-age"]:checked').value;
+  state.participantId = '';
+  state.sessionId = 'SESS_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+  state.gender = genderEl.value;
+  state.age = ageEl.value;
   state.trialResults = [];
   
   // Full 9-trial within-subject Latin Square experiment
   state.mode = 'full';
-  state.groupInfo = getOrderGroupInfo(state.participantId);
-  state.trialList = getTrialsForParticipant(state.participantId);
+  state.groupInfo = getNextSessionGroup();
+  state.trialList = getTrialsForGroup(state.groupInfo);
   state.currentTrialIndex = 0;
   
   // Launch the first trial
@@ -531,7 +574,8 @@ function submitSurvey() {
   
   // Prepare Result Object
   const trialResult = {
-    participantId: state.participantId,
+    sessionId: state.sessionId || ('SESS_' + Date.now()),
+    participantId: '',
     orderGroup: state.currentTrial.orderGroup,
     groupNumber: state.currentTrial.groupNumber,
     trialOrder: state.currentTrial.trialOrder,
@@ -572,9 +616,12 @@ function submitSurvey() {
     // Session is complete! Write session results to browser storage
     saveSessionToDatabase();
     
-    // Construct consolidated 1-row data (C01 to C09 in order) and sync to Excel (Google Sheets)
+    // Increment session counter for Latin square balancing
+    let counter = parseInt(localStorage.getItem('qoe_session_counter') || '0', 10);
+    localStorage.setItem('qoe_session_counter', counter + 1);
+
+    // Construct consolidated 1-row data (C01 to C09 in order) and sync to Google Sheets (130 columns)
     const wideData = buildParticipantWideData(
-      state.participantId,
       state.trialResults,
       state.gender,
       state.age,
@@ -589,7 +636,8 @@ function submitSurvey() {
 
 // Show final completed screen
 function showThankYouScreen() {
-  document.getElementById('summary-p-id').textContent = state.participantId;
+  const pIdEl = document.getElementById('summary-p-id');
+  if (pIdEl) pIdEl.textContent = '-';
   const groupText = state.groupInfo ? ` (順序組別: ${state.groupInfo.groupCode})` : '';
   document.getElementById('summary-trial-count').textContent = `${state.trialResults.length} / ${state.trialList.length}${groupText} (C01–C09 全數完成)`;
   showSection('thankyou');
@@ -632,8 +680,9 @@ function renderDashboard() {
   renderLatinSquareTable();
   
   // 2. Update Core Stats
-  const subjects = new Set(data.map(item => item.participantId));
-  document.getElementById('stat-total-subjects').textContent = subjects.size;
+  const sessions = new Set(data.map((item, idx) => item.sessionId || item.participantId || (item.timestamp ? item.timestamp.slice(0, 16) : Math.floor(idx / 9))));
+  const totalSubjects = sessions.size > 0 ? sessions.size : Math.floor(data.length / 9);
+  document.getElementById('stat-total-subjects').textContent = totalSubjects;
   document.getElementById('stat-total-trials').textContent = data.length;
   
   if (data.length > 0) {
@@ -778,7 +827,7 @@ function renderRawDataTable(data) {
   if (data.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="14" class="text-center text-muted">目前尚無實驗紀錄。請前往「進行實驗」填寫問卷，或點擊「載入範例模擬數據」。</td>
+        <td colspan="13" class="text-center text-muted">目前尚無實驗紀錄。請前往「進行實驗」填寫問卷，或點擊「載入範例模擬數據」。</td>
       </tr>
     `;
     return;
@@ -802,7 +851,6 @@ function renderRawDataTable(data) {
     
     html += `
       <tr>
-        <td><strong>${escapeHtml(item.participantId)}</strong></td>
         <td><span class="badge-cond" style="background: rgba(99,102,241,0.15); color: #4338ca;">${escapeHtml(item.orderGroup || '-')}</span></td>
         <td>${item.trialOrder ? '#' + item.trialOrder : '-'}</td>
         <td><span class="badge-cond ${animBadgeClass}"><strong>${escapeHtml(item.conditionCode || '-')}</strong></span></td>
@@ -894,7 +942,8 @@ function loadSampleMockData() {
   const subjects = ['P001', 'P002', 'P003', 'P004', 'P005'];
   
   // Seed database
-  subjects.forEach(subjectId => {
+  subjects.forEach((subjectId, sIdx) => {
+    const sessionId = `MOCK_SESS_${sIdx + 1}`;
     // Constant demographics for each mock subject
     const gender = Math.random() > 0.5 ? '生理男性' : '生理女性';
     const ageOptions = ['18-24歲', '25-34歲', '35-44歲', '45歲以上'];
@@ -989,7 +1038,8 @@ function loadSampleMockData() {
       const ts = new Date(Date.now() - timeOffset).toISOString();
       
       mockData.push({
-        participantId: subjectId,
+        sessionId: sessionId,
+        participantId: '',
         orderGroup: trial.orderGroup,
         groupNumber: trial.groupNumber,
         trialOrder: trial.trialOrder,
@@ -1029,13 +1079,12 @@ function loadSampleMockData() {
   alert('成功模擬載入 5 位受試者共 45 筆符合 9×9 拉丁方格之完整實驗數據！\n您可以立即在下方查看視覺化圖表、拉丁方格與數據表格。');
 }
 
-// Build Wide-format Data Object (1 row per participant, ordered C01 to C09)
-function buildParticipantWideData(participantId, trialResults, gender = null, age = null, orderGroup = null, timestamp = null) {
+// Build Wide-format Data Object (1 row per participant, ordered C01 to C09, no ParticipantID, 130 columns)
+function buildParticipantWideData(trialResults, gender = null, age = null, orderGroup = null, timestamp = null) {
   const codes = ['C01', 'C02', 'C03', 'C04', 'C05', 'C06', 'C07', 'C08', 'C09'];
   const baseResult = (trialResults && trialResults.length > 0) ? trialResults[0] : {};
   
   const row = {
-    ParticipantID: participantId,
     OrderGroup: orderGroup || baseResult.orderGroup || '-',
     Gender: gender || baseResult.gender || '-',
     AgeGroup: age || baseResult.age || '-',
@@ -1082,7 +1131,21 @@ function buildParticipantWideData(participantId, trialResults, gender = null, ag
   return row;
 }
 
-// Generate CSV string and trigger download in browser (Wide Format: 1 row per participant, C01 to C09)
+// Group trial records into individual participant sessions
+function groupTrialsBySession(data) {
+  const sessionsMap = new Map();
+  data.forEach((item, idx) => {
+    // Unique session key: item.sessionId or fallback
+    const key = item.sessionId || (item.participantId && item.participantId.trim() !== '' ? item.participantId : `SESSION_${Math.floor(idx / 9)}_${item.timestamp ? item.timestamp.slice(0, 10) : ''}`);
+    if (!sessionsMap.has(key)) {
+      sessionsMap.set(key, []);
+    }
+    sessionsMap.get(key).push(item);
+  });
+  return Array.from(sessionsMap.values());
+}
+
+// Generate CSV string and trigger download in browser (Wide Format: 1 row per participant, C01 to C09, 130 columns)
 function exportCSV() {
   const data = JSON.parse(localStorage.getItem('qoe_study_data') || '[]');
   if (data.length === 0) {
@@ -1090,19 +1153,8 @@ function exportCSV() {
     return;
   }
 
-  // Group trials by participantId preserving insertion order
-  const participantsMap = new Map();
-  data.forEach(item => {
-    if (!participantsMap.has(item.participantId)) {
-      participantsMap.set(item.participantId, []);
-    }
-    participantsMap.get(item.participantId).push(item);
-  });
-
-  const wideRows = [];
-  participantsMap.forEach((trials, pId) => {
-    wideRows.push(buildParticipantWideData(pId, trials));
-  });
+  const sessions = groupTrialsBySession(data);
+  const wideRows = sessions.map(trials => buildParticipantWideData(trials));
 
   if (wideRows.length === 0) {
     alert('無可用數據進行匯出！');
@@ -1135,7 +1187,7 @@ function exportCSV() {
   document.body.removeChild(link);
 }
 
-// Export detailed trials as CSV (Long format: 1 row per trial)
+// Export detailed trials as CSV (Long format: 1 row per trial, without ParticipantID)
 function exportLongCSV() {
   const data = JSON.parse(localStorage.getItem('qoe_study_data') || '[]');
   if (data.length === 0) {
@@ -1144,7 +1196,7 @@ function exportLongCSV() {
   }
 
   const headers = [
-    'ParticipantID', 'OrderGroup', 'TrialOrder', 'ConditionCode', 'AnimCode', 'DurCode',
+    'OrderGroup', 'TrialOrder', 'ConditionCode', 'AnimCode', 'DurCode',
     'Gender', 'AgeGroup', 'Timestamp', 'Animation', 'ActualDurationText', 'ActualDurationSec',
     'Q1_EstimateRaw', 'Q1_EstimateText', 'Q1_EstimateMidpointSec',
     'Q2_TimePassage', 'Q3_Interest',
@@ -1159,7 +1211,6 @@ function exportLongCSV() {
     const eAvg = item.emoAvg !== undefined ? item.emoAvg : (((item.q4_happy || 0) + (item.q5_comfortable || 0) + (item.q6_relaxed || 0) + (item.q7_stimulated || 0)) / 4).toFixed(2);
     const uAvg = item.utiAvg !== undefined ? item.utiAvg : (((item.q8_patient || 0) + (item.q9_energetic || 0) + (item.q10_powerful || 0)) / 3).toFixed(2);
     const row = [
-      escapeCsvCell(item.participantId),
       escapeCsvCell(item.orderGroup || '-'),
       item.trialOrder || '-',
       escapeCsvCell(item.conditionCode || '-'),
@@ -1217,7 +1268,7 @@ function escapeCsvCell(val) {
   return str;
 }
 
-// Export current session data as CSV for participant (1 row per participant, ordered C01 to C09)
+// Export current session data as CSV for participant (1 row per participant, ordered C01 to C09, 130 columns)
 function exportSessionCSV() {
   const data = state.trialResults;
   if (!data || data.length === 0) {
@@ -1226,7 +1277,6 @@ function exportSessionCSV() {
   }
 
   const wideData = buildParticipantWideData(
-    state.participantId,
     data,
     state.gender,
     state.age,
@@ -1247,10 +1297,9 @@ function exportSessionCSV() {
   const now = new Date();
   const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
   const timeStr = now.toTimeString().slice(0, 5).replace(/:/g, '');
-  const safePId = escapeCsvCell(state.participantId).replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_');
 
   link.setAttribute('href', url);
-  link.setAttribute('download', `${safePId}_QoE_Results_C01_C09_${dateStr}_${timeStr}.csv`);
+  link.setAttribute('download', `QoE_Results_C01_C09_${dateStr}_${timeStr}.csv`);
   link.style.visibility = 'hidden';
 
   document.body.appendChild(link);
@@ -1295,19 +1344,8 @@ function syncAllDataToGoogleSheets() {
     return;
   }
 
-  // Group trials by participantId preserving insertion order
-  const participantsMap = new Map();
-  data.forEach(item => {
-    if (!participantsMap.has(item.participantId)) {
-      participantsMap.set(item.participantId, []);
-    }
-    participantsMap.get(item.participantId).push(item);
-  });
-
-  const wideRows = [];
-  participantsMap.forEach((trials, pId) => {
-    wideRows.push(buildParticipantWideData(pId, trials));
-  });
+  const sessions = groupTrialsBySession(data);
+  const wideRows = sessions.map(trials => buildParticipantWideData(trials));
 
   if (wideRows.length === 0) {
     alert('⚠️ 無有效受試者數據可同步！');
@@ -1322,7 +1360,7 @@ function syncAllDataToGoogleSheets() {
 
   sendParticipantWideRowToGoogleSheets(wideRows)
     .then(() => {
-      alert(`✅ 已向 Google Sheets 發送 ${wideRows.length} 位受試者資料（一人一列 C01–C09，共 131 欄）進行同步！\n\n請開啟 Google Sheets 線上試算表確認更新。若尚未同步，請確認 Google Apps Script 已完成新版部署。`);
+      alert(`✅ 已向 Google Sheets 發送 ${wideRows.length} 位受試者資料（一人一列 C01–C09，共 130 欄）進行同步！\n\n請開啟 Google Sheets 線上試算表確認更新。若尚未同步，請確認 Google Apps Script 已完成新版部署。`);
     })
     .finally(() => {
       if (btnSync) {
@@ -1335,16 +1373,26 @@ function syncAllDataToGoogleSheets() {
 // Allow researcher to inspect or change Google Apps Script Web App URL
 function configureGoogleScriptUrl() {
   const currentUrl = getGoogleScriptUrl();
-  const newUrl = prompt('請輸入 Google Apps Script Web App 部署網址 (留空則還原為預設值)：\n\n目前設定：\n' + currentUrl, currentUrl);
-  if (newUrl !== null) {
-    if (newUrl.trim() === '') {
+  const input = prompt(
+    '【⚙️ Google Sheets 雲端同步設定】\n\n' +
+    '請輸入您的 Google 網頁應用程式網址 (Web App URL) 或 部署作業 ID：\n' +
+    '（留空則還原為系統預設值）\n\n' +
+    '目前設定網址：\n' + currentUrl, 
+    currentUrl
+  );
+  if (input !== null) {
+    const trimmed = input.trim();
+    if (trimmed === '') {
       localStorage.removeItem('qoe_google_script_url');
-      alert('已還原為預設 Google Script 網址！\n' + DEFAULT_GOOGLE_SCRIPT_URL);
-    } else if (newUrl.trim().startsWith('http')) {
-      localStorage.setItem('qoe_google_script_url', newUrl.trim());
-      alert('✅ Google Script 網址已更新並儲存！');
+      alert('已還原為預設 Google Script 網址！\n\n' + DEFAULT_GOOGLE_SCRIPT_URL);
     } else {
-      alert('⚠️ 輸入的網址格式不正確，需以 https:// 開頭。');
+      const normalized = normalizeGoogleScriptUrl(trimmed);
+      if (normalized.startsWith('https://script.google.com/macros/s/') && normalized.endsWith('/exec')) {
+        localStorage.setItem('qoe_google_script_url', normalized);
+        alert('✅ Google 試算表同步網址已成功更新！\n\n已設定為：\n' + normalized + '\n\n現在可點擊「☁️ 重新同步至 Google Sheets」進行資料同步。');
+      } else {
+        alert('⚠️ 輸入的網址或部署 ID 格式無法識別，請確認複製自 Apps Script 部署作業。\n輸入內容：' + trimmed);
+      }
     }
   }
 }
@@ -1391,55 +1439,32 @@ function getNextParticipantId() {
 }
 
 // Update the Participant ID UI, order group, and hidden input value
+// Update the Participant ID UI (kept for backward compatibility or researcher view)
 function updateOnboardingParticipantId(overrideId = null) {
-  // Check URL param if no override provided
-  let targetId = overrideId;
-  if (!targetId) {
-    const urlParams = new URLSearchParams(window.location.search);
-    const paramId = urlParams.get('pid') || urlParams.get('p') || urlParams.get('id');
-    if (paramId) {
-      if (!paramId.toUpperCase().startsWith('P')) {
-        const num = parseInt(paramId, 10);
-        targetId = !isNaN(num) ? 'P' + String(num).padStart(3, '0') : paramId;
-      } else {
-        targetId = paramId.toUpperCase();
-      }
-    }
+  const submitBtn = document.querySelector('#form-setup button[type="submit"]');
+  if (submitBtn) {
+    submitBtn.disabled = false;
+    submitBtn.style.opacity = '1';
+    submitBtn.style.cursor = 'pointer';
   }
 
-  const nextId = (targetId ? targetId.trim().toUpperCase() : null) || getNextParticipantId();
   const displayEl = document.getElementById('display-participant-id');
   const displayGroupEl = document.getElementById('display-order-group');
   const inputEl = document.getElementById('participant-id');
   const statusEl = document.getElementById('id-status-msg');
-  const submitBtn = document.querySelector('#form-setup button[type="submit"]');
-
-  const isDuplicate = isParticipantIdDuplicate(nextId);
 
   if (displayEl && inputEl) {
-    displayEl.textContent = nextId;
-    inputEl.value = nextId;
-    displayEl.style.color = isDuplicate ? '#dc2626' : '#047857';
+    displayEl.textContent = '不記名';
+    inputEl.value = '';
   }
 
   if (statusEl) {
-    if (isDuplicate) {
-      statusEl.textContent = '⚠️ 此受試者號碼已存在，不可重複！請點擊下方按鈕更換。';
-      statusEl.style.color = '#dc2626';
-    } else {
-      statusEl.textContent = '✅ 受試者代號可用（未重複）';
-      statusEl.style.color = '#059669';
-    }
-  }
-
-  if (submitBtn) {
-    submitBtn.disabled = isDuplicate;
-    submitBtn.style.opacity = isDuplicate ? '0.5' : '1';
-    submitBtn.style.cursor = isDuplicate ? 'not-allowed' : 'pointer';
+    statusEl.textContent = '✅ 不記名模式（免填代號）';
+    statusEl.style.color = '#059669';
   }
 
   if (displayGroupEl) {
-    const groupInfo = getOrderGroupInfo(nextId);
-    displayGroupEl.textContent = `🎲 分配順序組別：第 ${groupInfo.groupNumber} 組 (${groupInfo.groupCode})`;
+    const nextGroup = getNextSessionGroup();
+    displayGroupEl.textContent = `🎲 預計分配順序組別：第 ${nextGroup.groupNumber} 組 (${nextGroup.groupCode})`;
   }
 }

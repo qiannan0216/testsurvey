@@ -35,27 +35,27 @@
       
       <div class="intro-box">
         <h3>💡 實驗說明</h3>
-        <p>本實驗旨在評估不同等待動畫（載入圖示、咖啡杯、百分比）與不同等待時間（3秒、5秒、10秒）對使用者心理感受與時間感知的影響。</p>
+        <p>本實驗旨在評估不同等待動畫（載入圖示、咖啡杯、百分比）與不同等待時間對使用者心理感受與時間感知的影響。</p>
         <p><strong>流程說明：</strong></p>
         <ol>
-          <li>輸入受試者代號並選擇實驗模式。</li>
+          <li>選擇實驗，填寫基本資料。</li>
           <li>專心觀看載入動畫（播放期間無法暫停或快轉）。</li>
           <li>動畫結束後，系統會自動跳轉至問卷，請根據真實感受填答。</li>
         </ol>
+        <p style="margin-top: 0.8rem;">誠摯邀請您撥冗參與本研究調查，填答時間約為7~10分鐘。<br>
+        為了感謝您的貢獻，我將會把調查分析結果反饋給您，希望能略為回報您的貢獻！<br>
+        本問卷採不記名的方式作答，且所有蒐集的個人資料僅供於研究中做使用。您可以自由決定是否填寫，亦可中途不填寫，無須感到壓力，請安心依照個人實際狀態及感受填答即可。</p>
+        <div style="margin-top: 1rem; padding-top: 0.8rem; border-top: 1px dashed #dcd3c4; font-size: 0.95rem; line-height: 1.6;">
+          <p style="margin: 0.2rem 0;"><strong>指導教授：</strong>黃揚名博士</p>
+          <p style="margin: 0.2rem 0;"><strong>學生：</strong>林宛芊</p>
+          <p style="margin: 0.2rem 0;"><strong>聯絡信箱：</strong><br>
+            <a href="mailto:linwanqian0415@gmail.com" style="color: var(--primary);">linwanqian0415@gmail.com</a><br>
+            <a href="mailto:ymhuang@mail.fju.edu.tw" style="color: var(--primary);">ymhuang@mail.fju.edu.tw</a>
+          </p>
+        </div>
       </div>
 
       <form id="form-setup" class="setup-form">
-        <div class="form-group text-center">
-          <label style="font-size: 1.1rem; color: var(--text-muted);">👤 您的受試者代號 (Participant ID):</label>
-          <div id="display-participant-id" style="font-size: 2.5rem; font-weight: 700; color: #047857; margin: 0.5rem 0;">P001</div>
-          <div id="display-order-group" style="font-size: 1rem; color: var(--primary); margin-bottom: 0.3rem; font-weight: 600;">🎲 分配順序組別：第 1 組 (S01)</div>
-          <div id="id-status-msg" style="font-size: 0.88rem; font-weight: 600; color: #059669; margin-bottom: 0.5rem;">✅ 受試者代號可用（未重複）</div>
-          <!-- Hidden input to store for form submission -->
-          <input type="hidden" id="participant-id" value="P001">
-          <div>
-            <button type="button" id="btn-change-id" class="btn btn-secondary btn-sm" style="padding: 0.25rem 0.75rem; font-size: 0.82rem;">✏️ 自訂／切換編號</button>
-          </div>
-        </div>
 
         <div class="form-group">
           <label>🚻 生理性別 (Gender):</label>
@@ -396,13 +396,12 @@
         </p>
         
         <div class="completed-summary mt-4">
-          <p><span>受試者代號:</span> <strong id="summary-p-id">-</strong></p>
           <p><span>已完成測試組合數:</span> <strong id="summary-trial-count">0 / 9</strong></p>
-          <p><span>數據同步狀態:</span> <strong style="color: #059669;">已同步至 Excel 雲端紀錄 (一受試者一列 C01–C09)</strong></p>
+          <p><span>數據同步狀態:</span> <strong style="color: #059669;">已同步至 Google Sheets 雲端紀錄 (一受試者一列 C01–C09)</strong></p>
         </div>
 
         <div class="thankyou-actions mt-4">
-          <button id="btn-restart" class="btn btn-secondary">返回登入首頁</button>
+          <button id="btn-restart" class="btn btn-secondary">返回實驗首頁</button>
           <button id="btn-download-session" class="btn btn-primary" style="background: linear-gradient(135deg, var(--secondary) 0%, #047857 100%); border:none; box-shadow: 0 4px 15px rgba(5, 150, 105, 0.25);">📥 下載我的實驗結果 (Excel / CSV)</button>
           <button id="btn-view-results" class="btn btn-secondary hidden">📊 查看本機研究數據</button>
         </div>
@@ -570,7 +569,6 @@
           <table class="data-table" id="db-raw-table">
             <thead>
               <tr>
-                <th>受試者ID</th>
                 <th>順序組別</th>
                 <th>呈現序</th>
                 <th>情境代碼</th>
